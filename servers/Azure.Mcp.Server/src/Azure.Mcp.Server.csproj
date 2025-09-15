@@ -34,11 +34,7 @@
     <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(BuildNative)' == 'true'">
-    <!-- AOT native build flags -->
-    <PublishTrimmed>true</PublishTrimmed>
-    <SelfContained>true</SelfContained>
-  </PropertyGroup>
+
 
   <!-- Properties for the root (RID-less) .NET Tool package -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == ''">

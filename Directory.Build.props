@@ -28,8 +28,6 @@
     <PackageType>McpServer</PackageType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <!-- Keep these aligned with OS + arch build-matrix.json. -->
-    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <CopyOutputSymbolsToPublishDirectory>true</CopyOutputSymbolsToPublishDirectory>
@@ -41,7 +39,11 @@
     <!-- AOT native build flags -->
     <IsAotCompatible>true</IsAotCompatible>
     <PublishAot>true</PublishAot>
+    <PublishTrimmed>true</PublishTrimmed>
+    <SelfContained>true</SelfContained>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+    <!-- Keep these aligned with OS + arch build-matrix.json. -->
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 </Project>
