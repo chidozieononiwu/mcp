@@ -22,12 +22,12 @@ All Azure MCP tools in a single server. The Azure MCP Server implements the [MCP
   - [Getting Started](#getting-started)
   - [What can you do with the Azure MCP Server?](#what-can-you-do-with-the-azure-mcp-server)
   - [Complete List of Supported Azure Services](#complete-list-of-supported-azure-services)
-- [Support & Reference](#support-and-reference)
+- [Support and Reference](#support-and-reference)
     - [Documentation](#documentation)
-    - [Feedback & Support](#feedback-and-support)
+    - [Feedback and Support](#feedback-and-support)
     - [Security](#security)
     - [Data Collection](#data-collection)
-    - [Contributing & Code of Conduct](#contributing)
+    - [Contributing and Code of Conduct](#contributing)
 
 # Overview
 
@@ -414,14 +414,14 @@ The Azure MCP Server provides tools for interacting with **30+ Azure service are
 - 🏗️ **Bicep** - Azure resource templates
 - 🏗️ **Cloud Architect** - Guided architecture design
 
-# Support & Reference
+# Support and Reference
 
 ## Documentation
 
 - See our [official documentation on learn.microsoft.com](https://learn.microsoft.com/azure/developer/azure-mcp-server/) to learn how to use the Azure MCP Server to interact with Azure resources through natural language commands from AI agents and other types of clients.
 - For additional command documentation and examples, see [Azure MCP Commands](https://github.com/microsoft/mcp/blob/main/docs/azmcp-commands.md).
 
-## Feedback & Support
+## Feedback and Support
 
 - Check the [Troubleshooting guide](https://aka.ms/azmcp/troubleshooting) to diagnose and resolve common issues with the Azure MCP Server.
 - We're building this in the open. Your feedback is much appreciated, and will help us shape the future of the Azure MCP server.
