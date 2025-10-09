@@ -101,7 +101,7 @@ function BuildServer($serverName) {
         os = @()
         cpu = @()
         optionalDependencies = @{}
-        scripts = @{ postinstall = "node ./scripts/post-install-script.js" }
+        scripts = @{ postinstall = "PACKAGE_BASE_NAME=$packageName node ./scripts/post-install-script.js" }
     }
 
     $wrapperPackage | ConvertTo-Json | Out-File -FilePath "$serverOutputDirectory/wrapper.json" -Encoding utf8
