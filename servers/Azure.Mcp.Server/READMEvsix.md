@@ -1,6 +1,6 @@
 # Azure MCP Server Extension for Visual Studio Code
 
-All Azure MCP tools in a single server. The Azure MCP Server implements the [MCP specification](https://modelcontextprotocol.io) to create a seamless connection between AI agents and Azure services. Azure MCP Server can be used alone or with the [GitHub Copilot for Azure extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azure-github-copilot) in VS Code.  This project is in Public Preview and implementation may significantly change prior to our General Availability.
+All Azure MCP tools in a single server. The Azure MCP Server implements the [MCP specification](https://modelcontextprotocol.io) to create a seamless connection between AI agents and Azure services. Azure MCP Server can be used alone or with the [GitHub Copilot for Azure extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azure-github-copilot) in VS Code.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -19,26 +19,47 @@ All Azure MCP tools in a single server. The Azure MCP Server implements the [MCP
 
 # Overview
 
-**Azure MCP Server** supercharges your agents with Azure context across **30+ different Azure services**.
+**Azure MCP Server** supercharges your agents with Azure context across **40+ different Azure services**.
 
 # Installation
-
 - Install the [Azure MCP Server Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azure-mcp-server)
 - Start (or Auto-Start) the MCP Server
-    | | Enable Auto-Start | | Manual Start (if autostart is off) |
-    | -- | -- | -- | -- |
-    | 1| Open Settings in VS Code | 1| Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P). |
-    | 2| Search for `chat.mcp.autostart` | 2| Run MCP: List Servers.![List Servers](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/ListServers.png) |
-    | 3| Select **newAndOutdated** to automatically start MCP servers without manual refresh. | 3| Select Azure MCP Server ext, then click Start Server.![Select Server](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/SelectServer.png)![Start Server](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/StartServer.png) |
-    | 4| You can also set this from the refresh icon tooltip in the Chat view, which also shows which servers will auto-start.![VS Code MCP Autostart Tooltip](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/ToolTip.png) | 4| Confirm its runing by observing the log messages in the output tab. ![Output](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/Output.png)|
-
-To use Azure Entra ID, review the [troubleshooting guide](https://github.com/microsoft/mcp/blob/main/servers/Azure.Mcp.Server/TROUBLESHOOTING.md#using-azure-entra-id-with-docker).
+   > **VS Code (version 1.103 or above):** You can now configure MCP servers to start automatically using the `chat.mcp.autostart` setting, instead of manually restarting them after configuration changes.
+   #### **Enable Autostart**
+   1. Open **Settings** in VS Code.
+   2. Search for `chat.mcp.autostart`.
+   3. Select **newAndOutdated** to automatically start MCP servers without manual refresh.
+   4. You can also set this from the **refresh icon tooltip** in the Chat view, which also shows which servers will auto-start.
+      ![VS Code MCP Autostart Tooltip](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/ToolTip.png)
+   #### **Manual Start (if autostart is off)**
+   1. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+   2. Run `MCP: List Servers`.
+      ![List Servers](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/ListServers.png)
+   3. Select `Azure MCP Server ext`, then click **Start Server**.
+      ![Select Server](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/SelectServer.png)
+      ![Start Server](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/StartServer.png)
+   4. **Check That It's Running**
+      - Go to the **Output** tab in VS Code.
+      - Look for log messages confirming the server started successfully.
+      ![Output](https://raw.githubusercontent.com/microsoft/mcp/main/eng/vscode/resources/Walkthrough/Output.png)
+- (Optional) Configure tools and behavior
+    - Full options: control how tools are exposed and whether mutations are allowed:
+       ```json
+      // Server Mode: collapse per service (default), single tool, or expose every tool
+      "azureMcp.serverMode": "namespace", // one of: "single" | "namespace" (default) | "all"
+       // Filter which namespaces to expose
+       "azureMcp.enabledServices": ["storage", "keyvault"],
+       // Run the server in read-only mode (prevents write operations)
+       "azureMcp.readOnly": false
+       ```
+   - Changes take effect after restarting the Azure MCP server from the MCP: List Servers view. (Step 2)
+You’re all set! Azure MCP Server is now ready to help you work smarter with Azure resources in VS Code.
 
 # Usage
 
 ## Getting Started
 
-1. Open GitHub Copilot in [VS Code](https://code.visualstudio.com/docs/copilot/chat/chat-agent-mode) or [IntelliJ](https://github.blog/changelog/2025-05-19-agent-mode-and-mcp-support-for-copilot-in-jetbrains-eclipse-and-xcode-now-in-public-preview/#agent-mode) and switch to Agent mode.
+1. Open GitHub Copilot in [VS Code](https://code.visualstudio.com/docs/copilot/chat/chat-agent-mode)  and switch to Agent mode.
 1. Click `refresh` on the tools list
     - You should see the Azure MCP Server in the list of tools
 1. Try a prompt that tells the agent to use the Azure MCP Server, such as `List my Azure Storage containers`
@@ -87,23 +108,37 @@ To use Azure Entra ID, review the [troubleshooting guide](https://github.com/mic
 * "Get the details for website 'my-website'"
 * "Get the details for app service plan 'my-app-service-plan'"
 
+### 🖥️ Azure CLI Generate
+
+* Generate Azure CLI commands based on user intent
+
+### 📞 Azure Communication Services
+
+* "Send an SMS message to +1234567890"
+* "Send SMS with delivery reporting enabled"
+* "Send a broadcast SMS to multiple recipients"
+* "Send SMS with custom tracking tag"
+* "Send an email from 'sender@example.com' to 'recipient@example.com' with subject 'Hello' and message 'Welcome!'"
+* "Send an HTML email to multiple recipients with CC and BCC using Azure Communication Services"
+* "Send an email with reply-to address 'reply@example.com' and subject 'Support Request'"
+* "Send an email from my communication service endpoint with custom sender name and multiple recipients"
+* "Send an email to 'user1@example.com' and 'user2@example.com' with subject 'Team Update' and message 'Please review the attached document.'"
+
 ### 📦 Azure Container Apps
 
 * "List the container apps in my subscription"
 * "Show me the container apps in my 'my-resource-group' resource group"
+
+### 🔐 Azure Confidential Ledger
+
+* "Append entry {"foo":"bar"} to ledger contoso"
+* "Get entry with id 2.40 from ledger contoso"
 
 ### 📦 Azure Container Registry (ACR)
 
 * "List all my Azure Container Registries"
 * "Show me my container registries in the 'my-resource-group' resource group"
 * "List all my Azure Container Registry repositories"
-
-### ☸️ Azure Kubernetes Service (AKS)
-
-* "List my AKS clusters in my subscription"
-* "Show me all my Azure Kubernetes Service clusters"
-* "List the node pools for my AKS cluster"
-* "Get details for the node pool 'np1' of my AKS cluster 'my-aks-cluster' in the 'my-resource-group' resource group"
 
 ### 📊 Azure Cosmos DB
 
@@ -137,10 +172,19 @@ To use Azure Entra ID, review the [troubleshooting guide](https://github.com/mic
 * "Import a certificate file into key vault 'my-vault' using the name 'tls-cert'"
 * "Get the account settings for my key vault 'my-vault'"
 
+### ☸️ Azure Kubernetes Service (AKS)
+
+* "List my AKS clusters in my subscription"
+* "Show me all my Azure Kubernetes Service clusters"
+* "List the node pools for my AKS cluster"
+* "Get details for the node pool 'np1' of my AKS cluster 'my-aks-cluster' in the 'my-resource-group' resource group"
+
 ### ⚡ Azure Managed Lustre
 
 * "List the Azure Managed Lustre clusters in resource group 'my-resource-group'"
 * "How many IP Addresses I need to create a 128 TiB cluster of AMLFS 500?"
+* "Check if 'my-subnet-id' can host an Azure Managed Lustre with 'my-size' TiB and 'my-sku' in 'my-region'
+* Create a 4 TIB Azure Managed Lustre filesystem in 'my-region' attaching to 'my-subnet' in virtual network 'my-virtual-network'
 
 ### 📊 Azure Monitor
 
@@ -180,7 +224,7 @@ To use Azure Entra ID, review the [troubleshooting guide](https://github.com/mic
 
 ## Complete List of Supported Azure Services
 
-The Azure MCP Server provides tools for interacting with **30+ Azure service areas**:
+The Azure MCP Server provides tools for interacting with **40+ Azure service areas**:
 
 - 🧮 **Azure AI Foundry** - AI model management, AI model deployment, and knowledge index management
 - 🔎 **Azure AI Search** - Search engine/vector database operations
@@ -188,6 +232,9 @@ The Azure MCP Server provides tools for interacting with **30+ Azure service are
 - ⚙️ **Azure App Configuration** - Configuration management
 - 🕸️ **Azure App Service** - Web app hosting
 - 🛡️ **Azure Best Practices** - Secure, production-grade guidance
+- 🖥️ **Azure CLI Generate** - Generate Azure CLI commands from natural language
+- 📞 **Azure Communication Services** - SMS messaging and communication
+- 🔐 **Azure Confidential Ledger** - Tamper-proof ledger operations
 - 📦 **Azure Container Apps** - Container hosting
 - 📦 **Azure Container Registry (ACR)** - Container registry management
 - 📊 **Azure Cosmos DB** - NoSQL database operations
@@ -209,11 +256,11 @@ The Azure MCP Server provides tools for interacting with **30+ Azure service are
 - 🎭 **Azure RBAC** - Access control management
 - 🔴 **Azure Redis Cache** - In-memory data store
 - 🏗️ **Azure Resource Groups** - Resource organization
+- 🚌 **Azure Service Bus** - Message queuing
+- 🏥 **Azure Service Health** - Resource health status and availability
 - 🗄️ **Azure SQL Database** - Relational database management
 - 🗄️ **Azure SQL Elastic Pool** - Database resource sharing
 - 🗄️ **Azure SQL Server** - Server administration
-- 🚌 **Azure Service Bus** - Message queuing
-- 🏥 **Azure Service Health** - Resource health status and availability
 - 💾 **Azure Storage** - Blob storage
 - 📋 **Azure Subscription** - Subscription management
 - 🏗️ **Azure Terraform Best Practices** - Infrastructure as code guidance
@@ -227,7 +274,7 @@ The Azure MCP Server provides tools for interacting with **30+ Azure service are
 ## Documentation
 
 - See our [official documentation on learn.microsoft.com](https://learn.microsoft.com/azure/developer/azure-mcp-server/) to learn how to use the Azure MCP Server to interact with Azure resources through natural language commands from AI agents and other types of clients.
-- For additional command documentation and examples, see [Azure MCP Commands](https://github.com/microsoft/mcp/blob/main/docs/azmcp-commands.md).
+- For additional command documentation and examples, see [Azure MCP Commands](https://github.com/microsoft/mcp/blob/main/servers/Azure.Mcp.Server/docs/azmcp-commands.md).
 
 ## Feedback and Support
 
