@@ -1,15 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Azure.Mcp.Core.Models;
 using Azure.Mcp.Tools.Acr.Models;
 namespace Azure.Mcp.Tools.Acr.Services;
 
 public interface IAcrService
 {
-    Task<List<AcrRegistryInfo>> ListRegistries(
+    Task<PaginatedResponse<AcrRegistryInfo>> ListRegistries(
         string subscription,
         string? resourceGroup = null,
         string? tenant = null,
+        PaginationParams? pagination = null,
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default);
 

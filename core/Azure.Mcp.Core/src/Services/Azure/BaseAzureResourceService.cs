@@ -11,6 +11,7 @@ using Azure.ResourceManager;
 using Azure.ResourceManager.ResourceGraph;
 using Azure.ResourceManager.ResourceGraph.Models;
 using Azure.ResourceManager.Resources;
+using ModelContextProtocol.Protocol;
 
 namespace Azure.Mcp.Core.Services.Azure;
 
@@ -132,6 +133,43 @@ public abstract class BaseAzureResourceService(
         }
 
         return results;
+    }
+
+    protected async Task<PaginatedResponse<T>> ExecuteResourceQueryAsync<T>(
+        string resourceType,
+        string? resourceGroup,
+        string subscription,
+        RetryPolicyOptions? retryPolicy,
+        Func<JsonElement, T> converter,
+        string? tableName = "resources",
+        string? additionalFilter = null,
+        PaginationParams? paginationParams = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRequiredParameters((nameof(resourceType), resourceType), (nameof(subscription), subscription));
+        ArgumentNullException.ThrowIfNull(converter);
+
+        var results = new List<T>();
+
+        var subscriptionResource = await _subscriptionService.GetSubscription(subscription, null, retryPolicy, cancellationToken);
+        var tenantResource = await GetTenantResourceAsync(subscriptionResource.Data.TenantId, cancellationToken);
+
+        var queryFilter = $"{tableName} | where type =~ '{EscapeKqlString(resourceType)}'";
+        if (!string.IsNullOrEmpty(resourceGroup))
+        {
+            if (!await ValidateResourceGroupExistsAsync(subscriptionResource, resourceGroup, cancellationToken))
+            {
+                throw new KeyNotFoundException($"Resource group '{resourceGroup}' does not exist in subscription '{subscriptionResource.Data.SubscriptionId}'");
+            }
+            queryFilter += $" and resourceGroup =~ '{EscapeKqlString(resourceGroup)}'";
+        }
+        if (!string.IsNullOrEmpty(additionalFilter))
+        {
+            queryFilter += $" and {additionalFilter}";
+        }
+
+        ResourceQueryRequestOptions
+
     }
 
     /// <summary>

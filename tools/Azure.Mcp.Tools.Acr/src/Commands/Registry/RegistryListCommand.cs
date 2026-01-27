@@ -1,11 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Azure.Mcp.Core.Extensions;
+using Azure.Mcp.Core.Models;
+using Azure.Mcp.Core.Models.Option;
 using Azure.Mcp.Tools.Acr.Options.Registry;
 using Azure.Mcp.Tools.Acr.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Mcp.Core.Commands;
 using Microsoft.Mcp.Core.Models.Command;
+using Microsoft.Mcp.Core.Models.Option;
 
 namespace Azure.Mcp.Tools.Acr.Commands.Registry;
 
@@ -36,6 +40,21 @@ public sealed class RegistryListCommand(ILogger<RegistryListCommand> logger) : B
         LocalRequired = false,
         Secret = false
     };
+
+    protected override void RegisterOptions(Command command)
+    {
+        base.RegisterOptions(command);
+        command.Options.Add(OptionDefinitions.List.NextCursor);
+        command.Options.Add(OptionDefinitions.List.PageSize);
+    }
+
+    protected override RegistryListOptions BindOptions(ParseResult parseResult)
+    {
+        var options = base.BindOptions(parseResult);
+        options.Pagination.NextCursor = parseResult.GetValueOrDefault<string>(OptionDefinitions.List.NextCursor.Name);
+        options.Pagination.PageSize = parseResult.GetValueOrDefault<int?>(OptionDefinitions.List.PageSizeName);
+        return options;
+    }
 
     public override async Task<CommandResponse> ExecuteAsync(CommandContext context, ParseResult parseResult, CancellationToken cancellationToken)
     {
@@ -69,5 +88,5 @@ public sealed class RegistryListCommand(ILogger<RegistryListCommand> logger) : B
         return context.Response;
     }
 
-    internal record RegistryListCommandResult(List<Models.AcrRegistryInfo> Registries);
+    internal record RegistryListCommandResult(List<Models.AcrRegistryInfo> Registries, PaginationParams Pagination);
 }

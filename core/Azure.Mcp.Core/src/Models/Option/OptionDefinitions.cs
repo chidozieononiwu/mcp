@@ -89,4 +89,23 @@ public static partial class OptionDefinitions
             Required = true,
         };
     }
+
+    public static class List
+    {
+        public const string NextCursorName = "next-cursor";
+        public const string PageSizeName = "page-size";
+
+        public static readonly Option<string> NextCursor = new($"--{NextCursorName}")
+        {
+            Description = "Pagination cursor to retrieve the next page of results. Use the nextCursor value from a previous response.",
+            Required = false
+        };
+
+        public static readonly Option<int?> PageSize = new($"--{PageSizeName}")
+        {
+            Description = "Maximum number of items to return per page.",
+            Required = false
+        };
+    }
+
 }

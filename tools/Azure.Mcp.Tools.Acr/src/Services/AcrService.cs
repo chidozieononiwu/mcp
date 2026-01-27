@@ -4,6 +4,7 @@
 using System.Text.Json;
 using Azure.Containers.ContainerRegistry;
 using Azure.Core.Pipeline;
+using Azure.Mcp.Core.Models;
 using Azure.Mcp.Core.Services.Azure;
 using Azure.Mcp.Core.Services.Azure.Subscription;
 using Azure.Mcp.Core.Services.Azure.Tenant;
@@ -17,10 +18,11 @@ public sealed class AcrService(ISubscriptionService subscriptionService, ITenant
 {
     private readonly ILogger<AcrService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    public async Task<List<AcrRegistryInfo>> ListRegistries(
+    public async Task<PaginatedResponse<AcrRegistryInfo>> ListRegistries(
         string subscription,
         string? resourceGroup = null,
         string? tenant = null,
+        PaginationParams? pagination = null,
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default)
     {
