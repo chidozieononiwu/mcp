@@ -135,7 +135,7 @@ public abstract class BaseAzureResourceService(
         return results;
     }
 
-    protected async Task<PaginatedResponse<T>> ExecuteResourceQueryAsync<T>(
+    protected async Task<PaginatedResponse<T>> ExecuteResourceQueryWithPaginationAsync<T>(
         string resourceType,
         string? resourceGroup,
         string subscription,
@@ -148,6 +148,7 @@ public abstract class BaseAzureResourceService(
     {
         ValidateRequiredParameters((nameof(resourceType), resourceType), (nameof(subscription), subscription));
         ArgumentNullException.ThrowIfNull(converter);
+        paginationParams ??= new PaginationParams();
 
         var results = new List<T>();
 
@@ -168,8 +169,34 @@ public abstract class BaseAzureResourceService(
             queryFilter += $" and {additionalFilter}";
         }
 
-        ResourceQueryRequestOptions
+        var queryContent = new ResourceQueryContent(queryFilter)
+        {
+            Subscriptions = { subscriptionResource.Data.SubscriptionId },
+            Options = new ResourceQueryRequestOptions
+            {
+                Top = string.IsNullOrEmpty(paginationParams.NextCursor) ? paginationParams.PageSize : null,
+                SkipToken = paginationParams.NextCursor
+            }
+        };
 
+        ResourceQueryResult result = await tenantResource.GetResourcesAsync(queryContent, cancellationToken);
+        if (result != null && result.Count > 0)
+        {
+            using var jsonDocument = JsonDocument.Parse(result.Data);
+            var dataArray = jsonDocument.RootElement;
+            if (dataArray.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in dataArray.EnumerateArray())
+                {
+                    results.Add(converter(item));
+                }
+            }
+        }
+
+        return new PaginatedResponse<T>(
+            results,
+            result?.SkipToken,
+            result?.TotalRecords);
     }
 
     /// <summary>

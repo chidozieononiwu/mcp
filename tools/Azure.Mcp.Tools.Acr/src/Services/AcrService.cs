@@ -30,12 +30,13 @@ public sealed class AcrService(ISubscriptionService subscriptionService, ITenant
 
         try
         {
-            var registries = await ExecuteResourceQueryAsync(
+            var registries = await ExecuteResourceQueryWithPaginationAsync(
                 "Microsoft.ContainerRegistry/registries",
-                resourceGroup,
-                subscription,
-                retryPolicy,
-                ConvertToAcrRegistryInfoModel,
+                resourceGroup: resourceGroup,
+                subscription: subscription,
+                retryPolicy: retryPolicy,
+                converter: ConvertToAcrRegistryInfoModel,
+                paginationParams: pagination,
                 cancellationToken: cancellationToken);
 
             return registries;
@@ -124,8 +125,10 @@ public sealed class AcrService(ISubscriptionService subscriptionService, ITenant
 
         if (string.IsNullOrWhiteSpace(registry))
         {
-            var registries = await ListRegistries(subscription, resourceGroup, tenant, retryPolicy, cancellationToken);
-            foreach (var reg in registries)
+            var registries = await ListRegistries(subscription: subscription, resourceGroup: resourceGroup, tenant: tenant,
+                retryPolicy: retryPolicy, cancellationToken: cancellationToken);
+
+            foreach (var reg in registries.Items)
             {
                 if (!string.IsNullOrWhiteSpace(reg.Name) && !string.IsNullOrWhiteSpace(reg.LoginServer))
                 {

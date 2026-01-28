@@ -3,6 +3,6 @@
     public class PaginationParams
     {
         public string? NextCursor { get; set; } = null;
-        public int? PageSize { get; set; }
+        public int? PageSize { get; set; } = 50;
     }
 }

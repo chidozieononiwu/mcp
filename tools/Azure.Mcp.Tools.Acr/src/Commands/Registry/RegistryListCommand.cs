@@ -68,14 +68,15 @@ public sealed class RegistryListCommand(ILogger<RegistryListCommand> logger) : B
         try
         {
             var acrService = context.GetService<IAcrService>();
-            var registries = await acrService.ListRegistries(
+            var result = await acrService.ListRegistries(
                 options.Subscription!,
                 options.ResourceGroup,
                 options.Tenant,
+                options.Pagination,
                 options.RetryPolicy,
                 cancellationToken);
 
-            context.Response.Results = ResponseResult.Create(new(registries ?? []), AcrJsonContext.Default.RegistryListCommandResult);
+            context.Response.Results = ResponseResult.Create(new(result), AcrJsonContext.Default.RegistryListCommandResult);
         }
         catch (Exception ex)
         {
@@ -88,5 +89,5 @@ public sealed class RegistryListCommand(ILogger<RegistryListCommand> logger) : B
         return context.Response;
     }
 
-    internal record RegistryListCommandResult(List<Models.AcrRegistryInfo> Registries, PaginationParams Pagination);
+    internal record RegistryListCommandResult(PaginatedResponse<Models.AcrRegistryInfo> result);
 }
