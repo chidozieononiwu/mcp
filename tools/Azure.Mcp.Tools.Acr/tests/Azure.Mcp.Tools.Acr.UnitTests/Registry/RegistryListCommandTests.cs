@@ -153,10 +153,10 @@ public class RegistryListCommandTests
         Assert.NotNull(response.Results);
 
         var json = JsonSerializer.Serialize(response.Results);
-        var result = JsonSerializer.Deserialize(json, AcrJsonContext.Default.RegistryListCommandResult);
+        var result = JsonSerializer.Deserialize(json, AcrJsonContext.Default.PaginatedResponseAcrRegistryInfo);
 
         Assert.NotNull(result);
-        Assert.Empty(result.result.Items);
+        Assert.Empty(result.Items);
     }
 
     [Fact]

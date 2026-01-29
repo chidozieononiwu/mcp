@@ -4,6 +4,8 @@
 using System.Text.Json.Serialization;
 using Azure.Mcp.Core.Commands.Subscription;
 using Azure.Mcp.Core.Extensions;
+using Azure.Mcp.Core.Models;
+using Azure.Mcp.Core.Models.Option;
 using Azure.Mcp.Tools.Storage.Models;
 using Azure.Mcp.Tools.Storage.Options;
 using Azure.Mcp.Tools.Storage.Options.Account;
@@ -12,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Mcp.Core.Commands;
 using Microsoft.Mcp.Core.Models.Command;
 using Microsoft.Mcp.Core.Models.Option;
+using ModelContextProtocol.Protocol;
 
 namespace Azure.Mcp.Tools.Storage.Commands.Account;
 
@@ -38,19 +41,24 @@ public sealed class AccountGetCommand(ILogger<AccountGetCommand> logger) : Subsc
         OpenWorld = false,
         ReadOnly = true,
         LocalRequired = false,
-        Secret = false
+        Secret = false,
+        UI = OptionDefinitions.List.TableUiUri
     };
 
     protected override void RegisterOptions(Command command)
     {
         base.RegisterOptions(command);
         command.Options.Add(StorageOptionDefinitions.Account.AsOptional());
+        command.Options.Add(OptionDefinitions.List.NextCursor);
+        command.Options.Add(OptionDefinitions.List.PageSize);
     }
 
     protected override AccountGetOptions BindOptions(ParseResult parseResult)
     {
         var options = base.BindOptions(parseResult);
         options.Account = parseResult.GetValueOrDefault<string>(StorageOptionDefinitions.Account.Name);
+        options.Pagination.NextCursor = parseResult.GetValueOrDefault<string>(OptionDefinitions.List.NextCursor.Name);
+        options.Pagination.PageSize = parseResult.GetValueOrDefault<int>(OptionDefinitions.List.PageSize.Name);
         return options;
     }
 
@@ -73,11 +81,12 @@ public sealed class AccountGetCommand(ILogger<AccountGetCommand> logger) : Subsc
                 options.Account,
                 options.Subscription!,
                 options.Tenant,
+                options.Pagination,
                 options.RetryPolicy,
                 cancellationToken);
 
             // Set results
-            context.Response.Results = ResponseResult.Create(new(accounts ?? []), StorageJsonContext.Default.AccountGetCommandResult);
+            context.Response.Results = ResponseResult.Create(accounts, StorageJsonContext.Default.PaginatedResponseStorageAccountInfo);
         }
         catch (Exception ex)
         {
@@ -97,5 +106,5 @@ public sealed class AccountGetCommand(ILogger<AccountGetCommand> logger) : Subsc
     }
 
     // Strongly-typed result record
-    internal record AccountGetCommandResult([property: JsonPropertyName("accounts")] List<StorageAccountInfo> Accounts);
+    internal record PaginatedResponse<StorageAccountInfo>();
 }

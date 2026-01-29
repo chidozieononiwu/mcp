@@ -94,6 +94,7 @@ public static partial class OptionDefinitions
     {
         public const string NextCursorName = "next-cursor";
         public const string PageSizeName = "page-size";
+        public const string TableUiUri = "http://localhost:3000/ui/table";
 
         public static readonly Option<string> NextCursor = new($"--{NextCursorName}")
         {
@@ -101,10 +102,11 @@ public static partial class OptionDefinitions
             Required = false
         };
 
-        public static readonly Option<int?> PageSize = new($"--{PageSizeName}")
+        public static readonly Option<int> PageSize = new($"--{PageSizeName}")
         {
             Description = "Maximum number of items to return per page.",
-            Required = false
+            Required = false,
+            DefaultValueFactory = _ => 50
         };
     }
 

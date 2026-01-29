@@ -5,6 +5,7 @@ using System.Text.Json;
 using Azure.Core;
 using Azure.Core.Pipeline;
 using Azure.Data.Tables;
+using Azure.Mcp.Core.Models;
 using Azure.Mcp.Core.Options;
 using Azure.Mcp.Core.Services.Azure;
 using Azure.Mcp.Core.Services.Azure.Models;
@@ -28,28 +29,29 @@ public class StorageService(
 {
     private readonly ILogger<StorageService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    public async Task<List<StorageAccountInfo>> GetAccountDetails(
+    public async Task<PaginatedResponse<StorageAccountInfo>> GetAccountDetails(
         string? account,
         string subscription,
         string? tenant = null,
+        PaginationParams? pagination = null,
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default)
     {
         ValidateRequiredParameters((nameof(subscription), subscription));
-
-        var accounts = new List<StorageAccountInfo>();
+        PaginatedResponse<StorageAccountInfo> accounts;
 
         if (string.IsNullOrEmpty(account))
         {
             // List all accounts
             try
             {
-                return await ExecuteResourceQueryAsync(
+                accounts = await ExecuteResourceQueryWithPaginationAsync(
                     "Microsoft.Storage/storageAccounts",
-                    null,
-                    subscription,
-                    retryPolicy,
-                    ConvertToAccountInfoModel,
+                    resourceGroup: null,
+                    subscription: subscription,
+                    retryPolicy: retryPolicy,
+                    converter: ConvertToAccountInfoModel,
+                    paginationParams: pagination,
                     cancellationToken: cancellationToken);
             }
             catch (Exception ex)
@@ -62,21 +64,22 @@ public class StorageService(
         {
             try
             {
-                var storageAccount = await ExecuteSingleResourceQueryAsync(
+                pagination = new PaginationParams { PageSize = 1 };
+                accounts = await ExecuteResourceQueryWithPaginationAsync(
                     "Microsoft.Storage/storageAccounts",
                     resourceGroup: null,
                     subscription: subscription,
                     retryPolicy: retryPolicy,
                     converter: ConvertToAccountInfoModel,
+                    paginationParams: pagination,
                     additionalFilter: $"name =~ '{EscapeKqlString(account)}'",
                     cancellationToken: cancellationToken);
 
-                if (storageAccount == null)
+                if (accounts.Items == null)
                 {
                     throw new KeyNotFoundException($"Storage account '{account}' not found in subscription '{subscription}'.");
                 }
 
-                accounts.Add(storageAccount);
             }
             catch (Exception ex)
             {

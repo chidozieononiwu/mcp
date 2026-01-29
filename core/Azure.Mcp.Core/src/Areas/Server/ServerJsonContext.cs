@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Azure.Mcp.Core.Areas.Server.Models;
 using Microsoft.Mcp.Core.Commands;
@@ -25,6 +26,7 @@ namespace Azure.Mcp.Core.Areas.Server;
 [JsonSerializable(typeof(MetadataDefinition))]
 [JsonSerializable(typeof(ConsolidatedToolDefinition))]
 [JsonSerializable(typeof(List<ConsolidatedToolDefinition>))]
+[JsonSerializable(typeof(JsonObject))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull

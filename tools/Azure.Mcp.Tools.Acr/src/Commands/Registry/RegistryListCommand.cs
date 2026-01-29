@@ -2,14 +2,13 @@
 // Licensed under the MIT License.
 
 using Azure.Mcp.Core.Extensions;
-using Azure.Mcp.Core.Models;
 using Azure.Mcp.Core.Models.Option;
+using Azure.Mcp.Tools.Acr.Models;
 using Azure.Mcp.Tools.Acr.Options.Registry;
 using Azure.Mcp.Tools.Acr.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Mcp.Core.Commands;
 using Microsoft.Mcp.Core.Models.Command;
-using Microsoft.Mcp.Core.Models.Option;
 
 namespace Azure.Mcp.Tools.Acr.Commands.Registry;
 
@@ -38,7 +37,8 @@ public sealed class RegistryListCommand(ILogger<RegistryListCommand> logger) : B
         OpenWorld = false,
         ReadOnly = true,
         LocalRequired = false,
-        Secret = false
+        Secret = false,
+        UI = OptionDefinitions.List.TableUiUri
     };
 
     protected override void RegisterOptions(Command command)
@@ -52,7 +52,7 @@ public sealed class RegistryListCommand(ILogger<RegistryListCommand> logger) : B
     {
         var options = base.BindOptions(parseResult);
         options.Pagination.NextCursor = parseResult.GetValueOrDefault<string>(OptionDefinitions.List.NextCursor.Name);
-        options.Pagination.PageSize = parseResult.GetValueOrDefault<int?>(OptionDefinitions.List.PageSizeName);
+        options.Pagination.PageSize = parseResult.GetValueOrDefault<int>(OptionDefinitions.List.PageSize.Name);
         return options;
     }
 
@@ -76,7 +76,7 @@ public sealed class RegistryListCommand(ILogger<RegistryListCommand> logger) : B
                 options.RetryPolicy,
                 cancellationToken);
 
-            context.Response.Results = ResponseResult.Create(new(result), AcrJsonContext.Default.RegistryListCommandResult);
+            context.Response.Results = ResponseResult.Create(result, AcrJsonContext.Default.PaginatedResponseAcrRegistryInfo);
         }
         catch (Exception ex)
         {
@@ -89,5 +89,5 @@ public sealed class RegistryListCommand(ILogger<RegistryListCommand> logger) : B
         return context.Response;
     }
 
-    internal record RegistryListCommandResult(PaginatedResponse<Models.AcrRegistryInfo> result);
+    internal record PaginatedResponse<AcrRegistryInfo>();
 }

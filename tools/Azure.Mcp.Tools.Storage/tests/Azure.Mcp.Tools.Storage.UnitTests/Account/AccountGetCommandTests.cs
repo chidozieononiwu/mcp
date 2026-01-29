@@ -4,6 +4,7 @@
 using System.CommandLine;
 using System.Net;
 using System.Text.Json;
+using Azure.Mcp.Core.Models;
 using Azure.Mcp.Core.Options;
 using Azure.Mcp.Tools.Storage.Commands;
 using Azure.Mcp.Tools.Storage.Commands.Account;
@@ -44,16 +45,22 @@ public class AccountGetCommandTests
     {
         // Arrange
         var subscription = "sub123";
-        var expectedAccounts = new List<Models.StorageAccountInfo>
-        {
-            new("account1", "eastus", "StorageV2", "Standard_LRS", "Standard", true, "Succeeded", DateTimeOffset.UtcNow, true, true),
-            new("account2", "westus", "StorageV2", "Standard_GRS", "Standard", false, "Succeeded", DateTimeOffset.UtcNow, false, true)
-        };
+        var expectedAccounts = new PaginatedResponse<Models.StorageAccountInfo>
+        (
+            new List<Models.StorageAccountInfo>
+            {
+                new("account1", "eastus", "StorageV2", "Standard_LRS", "Standard", true, "Succeeded", DateTimeOffset.UtcNow, true, true),
+                new("account2", "westus", "StorageV2", "Standard_GRS", "Standard", false, "Succeeded", DateTimeOffset.UtcNow, false, true)
+            },
+            null,
+            null
+        );
 
         _storageService.GetAccountDetails(
             Arg.Is<string?>(s => string.IsNullOrEmpty(s)),
             Arg.Is(subscription),
             Arg.Any<string>(),
+            Arg.Any<PaginationParams>(),
             Arg.Any<RetryPolicyOptions>(),
             Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(expectedAccounts));
@@ -68,12 +75,12 @@ public class AccountGetCommandTests
         Assert.NotNull(response.Results);
 
         var json = JsonSerializer.Serialize(response.Results);
-        var result = JsonSerializer.Deserialize(json, StorageJsonContext.Default.AccountGetCommandResult);
+        var result = JsonSerializer.Deserialize(json, StorageJsonContext.Default.PaginatedResponseStorageAccountInfo);
 
         Assert.NotNull(result);
-        Assert.NotNull(result.Accounts);
-        Assert.Equal(expectedAccounts.Count, result.Accounts.Count);
-        Assert.Equal(expectedAccounts.Select(a => a.Name), result.Accounts.Select(a => a.Name));
+        Assert.NotNull(result);
+        Assert.Equal(expectedAccounts.Items.Count, result.Items.Count);
+        Assert.Equal(expectedAccounts.Items.Select(a => a.Name), result.Items.Select(a => a.Name));
     }
 
     [Fact]
@@ -86,9 +93,10 @@ public class AccountGetCommandTests
             Arg.Is<string?>(s => string.IsNullOrEmpty(s)),
             Arg.Is(subscription),
             Arg.Any<string>(),
+            Arg.Any<PaginationParams>(),
             Arg.Any<RetryPolicyOptions>(),
             Arg.Any<CancellationToken>())
-            .Returns([]);
+            .Returns(Task.FromResult(new PaginatedResponse<Models.StorageAccountInfo>(new List<Models.StorageAccountInfo>(), null, null)));
 
         var args = _commandDefinition.Parse(["--subscription", subscription]);
 
@@ -100,10 +108,10 @@ public class AccountGetCommandTests
         Assert.NotNull(response.Results);
 
         var json = JsonSerializer.Serialize(response.Results);
-        var result = JsonSerializer.Deserialize(json, StorageJsonContext.Default.AccountGetCommandResult);
+        var result = JsonSerializer.Deserialize(json, StorageJsonContext.Default.PaginatedResponseStorageAccountInfo);
 
         Assert.NotNull(result);
-        Assert.Empty(result.Accounts);
+        Assert.Empty(result.Items);
     }
 
     [Fact]
@@ -117,6 +125,7 @@ public class AccountGetCommandTests
             Arg.Is<string?>(s => string.IsNullOrEmpty(s)),
             Arg.Is(subscription),
             null,
+            Arg.Any<PaginationParams>(),
             Arg.Any<RetryPolicyOptions>(),
             Arg.Any<CancellationToken>())
             .ThrowsAsync(new Exception(expectedError));
@@ -150,13 +159,19 @@ public class AccountGetCommandTests
     {
         if (shouldSucceed)
         {
-            var expectedAccount = new List<Models.StorageAccountInfo> {
-                new ("mystorageaccount", "eastus", "StorageV2", "Standard_LRS", "Standard", true, "Succeeded", DateTimeOffset.UtcNow, true, true)
-            };
+            var expectedAccounts = new PaginatedResponse<Models.StorageAccountInfo>
+            (
+                new List<Models.StorageAccountInfo>
+                {
+                       new ("mystorageaccount", "eastus", "StorageV2", "Standard_LRS", "Standard", true, "Succeeded", DateTimeOffset.UtcNow, true, true)
+                },
+                null,
+                null
+            );
 
             _storageService.GetAccountDetails(
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
-                .Returns(Task.FromResult(expectedAccount));
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(expectedAccounts));
         }
 
         var parseResult = _commandDefinition.Parse(args);
@@ -183,13 +198,20 @@ public class AccountGetCommandTests
         // Arrange
         var account = "mystorageaccount";
         var subscription = "sub123";
-        var expectedAccount = new List<Models.StorageAccountInfo> {
-            new (account, "eastus", "StorageV2", "Standard_LRS", "Standard", true, "Succeeded", DateTimeOffset.UtcNow, true, true)
-        };
+
+        var expectedAccounts = new PaginatedResponse<Models.StorageAccountInfo>
+        (
+            new List<Models.StorageAccountInfo>
+            {
+                new (account, "eastus", "StorageV2", "Standard_LRS", "Standard", true, "Succeeded", DateTimeOffset.UtcNow, true, true)
+            },
+            null,
+            null
+        );
 
         _storageService.GetAccountDetails(
-            Arg.Is(account), Arg.Is(subscription), Arg.Any<string>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(expectedAccount));
+            Arg.Is(account), Arg.Is(subscription), Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(expectedAccounts));
 
         var args = _commandDefinition.Parse(["--account", account, "--subscription", subscription]);
 
@@ -202,14 +224,14 @@ public class AccountGetCommandTests
         Assert.Equal(HttpStatusCode.OK, response.Status);
 
         var json = JsonSerializer.Serialize(response.Results);
-        var result = JsonSerializer.Deserialize(json, StorageJsonContext.Default.AccountGetCommandResult);
+        var result = JsonSerializer.Deserialize(json, StorageJsonContext.Default.PaginatedResponseStorageAccountInfo);
 
         Assert.NotNull(result);
-        Assert.Single(result.Accounts);
+        Assert.Single(result.Items);
 
-        Assert.Equal(expectedAccount[0].Name, result.Accounts[0].Name);
-        Assert.Equal(expectedAccount[0].Location, result.Accounts[0].Location);
-        Assert.Equal(expectedAccount[0].Kind, result.Accounts[0].Kind);
+        Assert.Equal(expectedAccounts.Items[0].Name, result.Items[0].Name);
+        Assert.Equal(expectedAccounts.Items[0].Location, result.Items[0].Location);
+        Assert.Equal(expectedAccounts.Items[0].Kind, result.Items[0].Kind);
     }
 
     [Fact]
@@ -220,7 +242,7 @@ public class AccountGetCommandTests
         var subscription = "sub123";
 
         _storageService.GetAccountDetails(
-            Arg.Is(account), Arg.Is(subscription), Arg.Any<string>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
+            Arg.Is(account), Arg.Is(subscription), Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new Exception("Test error"));
 
         var parseResult = _commandDefinition.Parse(["--account", account, "--subscription", subscription]);
@@ -242,7 +264,7 @@ public class AccountGetCommandTests
         var subscription = "sub123";
 
         _storageService.GetAccountDetails(
-            Arg.Is(account), Arg.Is(subscription), Arg.Any<string>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
+            Arg.Is(account), Arg.Is(subscription), Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new RequestFailedException((int)HttpStatusCode.NotFound, "Storage account not found"));
 
         var parseResult = _commandDefinition.Parse(["--account", account, "--subscription", subscription]);
@@ -263,7 +285,7 @@ public class AccountGetCommandTests
         var subscription = "sub123";
 
         _storageService.GetAccountDetails(
-            Arg.Is(account), Arg.Is(subscription), Arg.Any<string>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
+            Arg.Is(account), Arg.Is(subscription), Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<RetryPolicyOptions>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new RequestFailedException((int)HttpStatusCode.Forbidden, "Authorization failed"));
 
         var parseResult = _commandDefinition.Parse(["--account", account, "--subscription", subscription]);

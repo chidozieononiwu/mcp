@@ -251,6 +251,16 @@ public sealed class CommandFactoryToolLoader(
             };
         }
 
+        if (metadata.UI != null)
+        {
+            tool.Meta ??= new JsonObject();
+            var uiMeta = new JsonObject
+            {
+                ["resourceUri"] = metadata.UI
+            };
+            tool.Meta["ui"] = uiMeta;
+        }
+
         var options = command.GetCommand().Options;
 
         var schema = new ToolInputSchema();

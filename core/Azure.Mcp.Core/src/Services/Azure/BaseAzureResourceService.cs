@@ -149,6 +149,7 @@ public abstract class BaseAzureResourceService(
         ValidateRequiredParameters((nameof(resourceType), resourceType), (nameof(subscription), subscription));
         ArgumentNullException.ThrowIfNull(converter);
         paginationParams ??= new PaginationParams();
+        paginationParams.Validate();
 
         var results = new List<T>();
 
@@ -174,7 +175,7 @@ public abstract class BaseAzureResourceService(
             Subscriptions = { subscriptionResource.Data.SubscriptionId },
             Options = new ResourceQueryRequestOptions
             {
-                Top = string.IsNullOrEmpty(paginationParams.NextCursor) ? paginationParams.PageSize : null,
+                Top = string.IsNullOrEmpty(paginationParams.NextCursor) ? paginationParams.GetEffectivePageSize() : null,
                 SkipToken = paginationParams.NextCursor
             }
         };

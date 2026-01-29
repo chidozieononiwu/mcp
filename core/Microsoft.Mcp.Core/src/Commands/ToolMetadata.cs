@@ -20,6 +20,7 @@ public sealed class ToolMetadata
     private bool _readOnly = false;
     private bool _secret = false;
     private bool _localRequired = false;
+    private string? _ui = null;
 
     private MetadataDefinition? _destructiveProperty;
     private MetadataDefinition? _idempotentProperty;
@@ -211,6 +212,13 @@ public sealed class ToolMetadata
             ? "This tool is only available when the Azure MCP server is configured to run as a Local MCP Server (STDIO)."
             : "This tool is available in both local and remote server modes."
     };
+
+    [JsonIgnore]
+    public string? UI
+    {
+        get => _ui;
+        init => _ui = value;
+    }
 
     /// <summary>
     /// Creates a new instance of <see cref="ToolMetadata"/> with default values.

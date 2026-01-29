@@ -548,6 +548,16 @@ public sealed class NamespaceToolLoader(
             tool.Meta = new JsonObject { ["SecretHint"] = metadata.Secret };
         }
 
+        if (metadata.UI != null)
+        {
+            tool.Meta ??= new JsonObject();
+            var uiMeta = new JsonObject
+            {
+                ["resourceUri"] = metadata.UI
+            };
+            tool.Meta["ui"] = uiMeta;
+        }
+
         var schema = new ToolInputSchema();
         var options = command.GetCommand().Options;
 

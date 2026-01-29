@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Azure.Mcp.Core.Models;
 using Azure.Mcp.Core.Options;
 using Azure.Mcp.Tools.Storage.Models;
 
@@ -8,10 +9,11 @@ namespace Azure.Mcp.Tools.Storage.Services;
 
 public interface IStorageService
 {
-    Task<List<StorageAccountInfo>> GetAccountDetails(
+    Task<PaginatedResponse<StorageAccountInfo>> GetAccountDetails(
         string? account,
         string subscription,
         string? tenant = null,
+        PaginationParams? pagination = null,
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default);
 

@@ -3,6 +3,7 @@
 
 using System.CommandLine;
 using Azure.Mcp.Core.Helpers;
+using Azure.Mcp.Core.Models;
 using Azure.Mcp.Core.Options;
 using Azure.Mcp.Tools.Storage.Commands.Account;
 using Azure.Mcp.Tools.Storage.Services;
@@ -55,16 +56,22 @@ public class SubscriptionCommandTests
         // Arrange
         EnvironmentHelpers.SetAzureSubscriptionId("env-subs");
 
-        var expectedAccounts = new List<Mcp.Tools.Storage.Models.StorageAccountInfo>
-        {
-            new("account1", null, null, null, null, null, null, null, null, null),
-            new("account2", null, null, null, null, null, null, null, null, null)
-        };
+        var expectedAccounts = new PaginatedResponse<Mcp.Tools.Storage.Models.StorageAccountInfo>
+        (
+            new List<Mcp.Tools.Storage.Models.StorageAccountInfo>
+            {
+                new("account1", null, null, null, null, null, null, null, null, null),
+                new("account2", null, null, null, null, null, null, null, null, null)
+            },
+            null,
+            null
+        );
 
         _storageService.GetAccountDetails(
             Arg.Is<string?>(s => string.IsNullOrEmpty(s)),
             Arg.Is("env-subs"),
             Arg.Any<string>(),
+            Arg.Any<PaginationParams>(),
             Arg.Any<RetryPolicyOptions>(),
             Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(expectedAccounts));
@@ -82,6 +89,7 @@ public class SubscriptionCommandTests
             Arg.Is<string?>(s => string.IsNullOrEmpty(s)),
             "env-subs",
             Arg.Any<string>(),
+            Arg.Any<PaginationParams>(),
             Arg.Any<RetryPolicyOptions>(),
             Arg.Any<CancellationToken>());
     }
@@ -92,16 +100,22 @@ public class SubscriptionCommandTests
         // Arrange
         EnvironmentHelpers.SetAzureSubscriptionId("env-subs");
 
-        var expectedAccounts = new List<Mcp.Tools.Storage.Models.StorageAccountInfo>
-        {
-            new("account1", null, null, null, null, null, null, null, null, null),
-            new("account2", null, null, null, null, null, null, null, null, null)
-        };
+        var expectedAccounts = new PaginatedResponse<Mcp.Tools.Storage.Models.StorageAccountInfo>
+        (
+            new List<Mcp.Tools.Storage.Models.StorageAccountInfo>
+            {
+                new("account1", null, null, null, null, null, null, null, null, null),
+                new("account2", null, null, null, null, null, null, null, null, null)
+            },
+            null,
+            null
+        );
 
         _storageService.GetAccountDetails(
             Arg.Is<string?>(s => string.IsNullOrEmpty(s)),
             Arg.Is("option-subs"),
             Arg.Any<string>(),
+            Arg.Any<PaginationParams>(),
             Arg.Any<RetryPolicyOptions>(),
             Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(expectedAccounts));
@@ -119,12 +133,14 @@ public class SubscriptionCommandTests
             Arg.Is<string?>(s => string.IsNullOrEmpty(s)),
             "option-subs",
             Arg.Any<string>(),
+            Arg.Any<PaginationParams>(),
             Arg.Any<RetryPolicyOptions>(),
             Arg.Any<CancellationToken>());
         _ = _storageService.DidNotReceive().GetAccountDetails(
             Arg.Is<string?>(s => string.IsNullOrEmpty(s)),
             "env-subs",
             Arg.Any<string>(),
+            Arg.Any<PaginationParams>(),
             Arg.Any<RetryPolicyOptions>(),
             Arg.Any<CancellationToken>());
     }
