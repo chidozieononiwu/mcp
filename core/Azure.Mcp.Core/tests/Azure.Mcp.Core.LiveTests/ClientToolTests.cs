@@ -16,6 +16,20 @@ public class ClientToolTests(ITestOutputHelper output, TestProxyFixture testProx
 {
 
     [Fact]
+    public async Task CheckInitializeResponse()
+    {
+        // Access initialize response data:
+        var serverInfo = Client.ServerInfo;
+        var protocolVersion = Client.NegotiatedProtocolVersion; 
+        var instructionSets = Client.ServerInstructions;
+
+        // Assertions
+        Assert.NotNull(serverInfo);
+        Assert.NotNull(protocolVersion);
+        Assert.NotNull(instructionSets);
+    }
+
+    [Fact]
     public async Task Should_List_Tools()
     {
         var tools = await Client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
