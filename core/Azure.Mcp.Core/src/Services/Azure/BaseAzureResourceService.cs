@@ -172,6 +172,90 @@ public abstract class BaseAzureResourceService(
     }
 
     /// <summary>
+    /// Executes a paginated Resource Graph query and returns resources with pagination support.
+    /// </summary>
+    /// <typeparam name="T">The type to convert each resource to</typeparam>
+    /// <param name="resourceType">The Azure resource type to query for (e.g., "Microsoft.Sql/servers/databases")</param>
+    /// <param name="resourceGroup">The resource group name to filter by (null to query all resource groups)</param>
+    /// <param name="subscription">The subscription ID or name</param>
+    /// <param name="retryPolicy">Optional retry policy configuration</param>
+    /// <param name="converter">Function to convert JsonElement to the target type</param>
+    /// <param name="tableName">Optional table name to query (default: "resources")</param>
+    /// <param name="additionalFilter">Optional additional KQL filter conditions</param>
+    /// <param name="limit">Maximum number of results to return per page (default: 50)</param>
+    /// <param name="skipToken">Optional continuation token from a previous query to get the next page of results</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <param name="tenant">Optional tenant to use for the query</param>
+    /// <returns>Paginated results including the list of resources and continuation token for the next page</returns>
+    protected async Task<PaginatedResourceQueryResults<T>> ExecutePaginatedResourceQueryAsync<T>(
+        string resourceType,
+        string? resourceGroup,
+        string subscription,
+        RetryPolicyOptions? retryPolicy,
+        Func<JsonElement, T> converter,
+        string? tableName = "resources",
+        string? additionalFilter = null,
+        int limit = 50,
+        string? skipToken = null,
+        CancellationToken cancellationToken = default,
+        string? tenant = null)
+    {
+        ValidateRequiredParameters((nameof(resourceType), resourceType), (nameof(subscription), subscription));
+        ArgumentNullException.ThrowIfNull(converter);
+
+        var results = new List<T>();
+
+        var subscriptionResource = await _subscriptionService.GetSubscription(subscription, tenant, retryPolicy, cancellationToken);
+        var tenantResource = await GetTenantResourceAsync(subscriptionResource!.Data.TenantId, cancellationToken);
+
+        var queryFilter = $"{tableName} | where type =~ '{EscapeKqlString(resourceType)}'";
+        if (!string.IsNullOrEmpty(resourceGroup))
+        {
+            if (!await ValidateResourceGroupExistsAsync(subscriptionResource, resourceGroup, cancellationToken))
+            {
+                throw new KeyNotFoundException($"Resource group '{resourceGroup}' does not exist in subscription '{subscriptionResource.Data.SubscriptionId}'");
+            }
+            queryFilter += $" and resourceGroup =~ '{EscapeKqlString(resourceGroup)}'";
+        }
+        if (!string.IsNullOrEmpty(additionalFilter))
+        {
+            queryFilter += $" and {additionalFilter}";
+        }
+
+        var queryContent = new ResourceQueryContent(queryFilter)
+        {
+            Subscriptions = { subscriptionResource.Data.SubscriptionId },
+            Options = new ResourceQueryRequestOptions
+            {
+                Top = limit
+            }
+        };
+
+        if (!string.IsNullOrEmpty(skipToken))
+        {
+            queryContent.Options.SkipToken = skipToken;
+        }
+
+        ResourceQueryResult result = await tenantResource.GetResourcesAsync(queryContent, cancellationToken);
+        if (result != null && result.Count > 0)
+        {
+            using var jsonDocument = JsonDocument.Parse(result.Data);
+            var dataArray = jsonDocument.RootElement;
+            if (dataArray.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in dataArray.EnumerateArray())
+                {
+                    results.Add(converter(item));
+                }
+            }
+        }
+
+        return new PaginatedResourceQueryResults<T>(
+            results,
+            result?.SkipToken);
+    }
+
+    /// <summary>
     /// Create an <see cref="ArmClient"/> with the specified API version set for the given resource type.
     /// This wraps <see cref="BaseAzureService.CreateArmClientAsync"/> and configures the <see cref="ArmClientOptions"/> appropriately.
     /// </summary>
@@ -242,3 +326,5 @@ public abstract class BaseAzureResourceService(
 }
 
 public sealed record ResourceQueryResults<T>(List<T> Results, bool AreResultsTruncated);
+
+public sealed record PaginatedResourceQueryResults<T>(List<T> Results, string? ContinuationToken);

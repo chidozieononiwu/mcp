@@ -73,6 +73,28 @@ public class StorageService(
         }
     }
 
+    public async Task<PaginatedResourceQueryResults<StorageAccountInfo>> ListAccountDetails(
+        string subscription,
+        int limit = 50,
+        string? skipToken = null,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRequiredParameters((nameof(subscription), subscription));
+
+        return await ExecutePaginatedResourceQueryAsync(
+            "Microsoft.Storage/storageAccounts",
+            resourceGroup: null,
+            subscription: subscription,
+            retryPolicy: retryPolicy,
+            converter: ConvertToAccountInfoModel,
+            limit: limit,
+            skipToken: skipToken,
+            tenant: tenant,
+            cancellationToken: cancellationToken);
+    }
+
     public async Task<StorageAccountResult> CreateStorageAccount(
         string account,
         string resourceGroup,

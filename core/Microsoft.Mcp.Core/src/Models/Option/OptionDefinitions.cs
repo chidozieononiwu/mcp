@@ -79,6 +79,24 @@ public static partial class OptionDefinitions
         };
     }
 
+    public static class Pagination
+    {
+        public const string PageSizeName = "page-size";
+        public const string SkipTokenName = "next-cursor";
+
+        public static readonly Option<int?> PageSize = new($"--{PageSizeName}")
+        {
+            Description = "Maximum number of results to return per page. Default is 50.",
+            Required = false
+        };
+
+        public static readonly Option<string?> SkipToken = new($"--{SkipTokenName}")
+        {
+            Description = "Continuation token from a previous request to get the next page of results.",
+            Required = false
+        };
+    }
+
     public static class Authorization
     {
         public const string ScopeName = "scope";

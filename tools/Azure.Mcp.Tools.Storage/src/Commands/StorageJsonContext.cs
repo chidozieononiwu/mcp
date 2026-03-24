@@ -14,6 +14,7 @@ namespace Azure.Mcp.Tools.Storage.Commands;
 
 [JsonSerializable(typeof(AccountCreateCommand.AccountCreateCommandResult))]
 [JsonSerializable(typeof(AccountGetCommand.AccountGetCommandResult))]
+[JsonSerializable(typeof(AccountGetCommand.AccountGetCommandPaginatedResult))]
 [JsonSerializable(typeof(StorageAccountInfo))]
 [JsonSerializable(typeof(StorageAccountResult))]
 [JsonSerializable(typeof(BlobGetCommand.BlobGetCommandResult))]

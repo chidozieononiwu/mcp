@@ -2,14 +2,17 @@
 // Licensed under the MIT License.
 
 using System.Text.Json.Serialization;
-using Azure.Mcp.Tools.Storage.Options;
 
-namespace Azure.Mcp.Tools.Storage.Options.Account;
+namespace Azure.Mcp.Core.Options;
 
-public class AccountGetOptions : BaseStorageOptions
+/// <summary>
+/// Base options class for commands that support paginated list operations.
+/// Provides common pagination parameters including page size and continuation token.
+/// </summary>
+public class PaginatedListOptions : SubscriptionOptions
 {
     /// <summary>
-    /// Maximum number of results to return per page. If not specified, defaults to 50.
+    /// Maximum number of results to return per page. If not specified, service-specific defaults will be used (typically 50).
     /// </summary>
     [JsonPropertyName("page-size")]
     public int? PageSize { get; set; }
