@@ -82,10 +82,8 @@ public sealed class AccountGetCommand(ILogger<AccountGetCommand> logger, IStorag
                     cancellationToken);
 
                 // Return paginated result with continuation token
-                context.Response.Results = ResponseResult.Create(
-                    new AccountGetCommandPaginatedResult(paginatedResults.Results, paginatedResults.ContinuationToken),
-                    StorageJsonContext.Default.AccountGetCommandPaginatedResult);
-            }
+                context.Response.Results = ResponseResult.Create(paginatedResults, StorageJsonContext.Default.PaginatedResultsStorageAccountInfo);
+            }   
             else
             {
                 // Get specific account
@@ -120,7 +118,4 @@ public sealed class AccountGetCommand(ILogger<AccountGetCommand> logger, IStorag
 
     // Strongly-typed result record
     internal record AccountGetCommandResult(List<StorageAccountInfo> Accounts, bool AreResultsTruncated);
-
-    // Strongly-typed result record with pagination support
-    internal record AccountGetCommandPaginatedResult(List<StorageAccountInfo> Accounts, string? ContinuationToken);
 }

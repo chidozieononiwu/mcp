@@ -9,12 +9,14 @@ using Azure.Mcp.Tools.Storage.Commands.Blob.Container;
 using Azure.Mcp.Tools.Storage.Models;
 using Azure.Mcp.Tools.Storage.Services.Models;
 using Azure.Mcp.Tools.Storage.Table.Commands;
+using Microsoft.Mcp.Core.Models;
+using ModelContextProtocol.Protocol;
 
 namespace Azure.Mcp.Tools.Storage.Commands;
 
 [JsonSerializable(typeof(AccountCreateCommand.AccountCreateCommandResult))]
 [JsonSerializable(typeof(AccountGetCommand.AccountGetCommandResult))]
-[JsonSerializable(typeof(AccountGetCommand.AccountGetCommandPaginatedResult))]
+[JsonSerializable(typeof(PaginatedResults<StorageAccountInfo>))]
 [JsonSerializable(typeof(StorageAccountInfo))]
 [JsonSerializable(typeof(StorageAccountResult))]
 [JsonSerializable(typeof(BlobGetCommand.BlobGetCommandResult))]

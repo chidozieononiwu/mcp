@@ -11,6 +11,7 @@ using Azure.ResourceManager;
 using Azure.ResourceManager.ResourceGraph;
 using Azure.ResourceManager.ResourceGraph.Models;
 using Azure.ResourceManager.Resources;
+using Microsoft.Mcp.Core.Models;
 
 namespace Azure.Mcp.Core.Services.Azure;
 
@@ -187,7 +188,7 @@ public abstract class BaseAzureResourceService(
     /// <param name="cancellationToken">Cancellation token</param>
     /// <param name="tenant">Optional tenant to use for the query</param>
     /// <returns>Paginated results including the list of resources and continuation token for the next page</returns>
-    protected async Task<PaginatedResourceQueryResults<T>> ExecutePaginatedResourceQueryAsync<T>(
+    protected async Task<PaginatedResults<T>> ExecutePaginatedResourceQueryAsync<T>(
         string resourceType,
         string? resourceGroup,
         string subscription,
@@ -250,7 +251,7 @@ public abstract class BaseAzureResourceService(
             }
         }
 
-        return new PaginatedResourceQueryResults<T>(
+        return new PaginatedResults<T>(
             results,
             result?.SkipToken);
     }
@@ -326,5 +327,3 @@ public abstract class BaseAzureResourceService(
 }
 
 public sealed record ResourceQueryResults<T>(List<T> Results, bool AreResultsTruncated);
-
-public sealed record PaginatedResourceQueryResults<T>(List<T> Results, string? ContinuationToken);

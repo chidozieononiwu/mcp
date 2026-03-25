@@ -17,6 +17,7 @@ using Azure.ResourceManager;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Mcp.Core.Models;
 
 namespace Azure.Mcp.Tools.Storage.Services;
 
@@ -73,7 +74,7 @@ public class StorageService(
         }
     }
 
-    public async Task<PaginatedResourceQueryResults<StorageAccountInfo>> ListAccountDetails(
+    public async Task<PaginatedResults<StorageAccountInfo>> ListAccountDetails(
         string subscription,
         int limit = 50,
         string? skipToken = null,

@@ -10,6 +10,7 @@ using Azure.Mcp.Core.Services.Caching;
 using Azure.ResourceManager.CosmosDB;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using Microsoft.Mcp.Core.Models;
 
 namespace Azure.Mcp.Tools.Cosmos.Services;
 
@@ -141,17 +142,59 @@ public sealed class CosmosService(ISubscriptionService subscriptionService, ITen
     {
         ValidateRequiredParameters((nameof(subscription), subscription));
 
+        var allAccounts = new List<string>();
+        string? continuationToken = null;
+
+        do
+        {
+            var result = await GetPaginatedCosmosAccounts(
+                subscription,
+                limit: null,
+                continuationToken,
+                tenant,
+                retryPolicy,
+                cancellationToken);
+
+            allAccounts.AddRange(result.Results);
+            continuationToken = result.NextCursor;
+        }
+        while (continuationToken != null);
+
+        return allAccounts;
+    }
+
+    public async Task<PaginatedResults<string>> GetPaginatedCosmosAccounts(
+        string subscription,
+        int? limit = null,
+        string? continuationToken = null,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRequiredParameters((nameof(subscription), subscription));
+
         var subscriptionResource = await _subscriptionService.GetSubscription(subscription, tenant, retryPolicy, cancellationToken);
         var accounts = new List<string>();
-        await foreach (var account in subscriptionResource.GetCosmosDBAccountsAsync(cancellationToken))
+        int pageSize = limit ?? 50;
+
+        // Use AsPages() to get access to ARM's native continuation tokens
+        var pages = subscriptionResource.GetCosmosDBAccounts(cancellationToken: cancellationToken)
+            .AsPages(continuationToken: continuationToken, pageSizeHint: pageSize);
+
+        foreach (var page in pages)
         {
-            if (account?.Data?.Name != null)
+            foreach (var account in page.Values)
             {
-                accounts.Add(account.Data.Name);
+                if (account?.Data?.Name != null)
+                {
+                    accounts.Add(account.Data.Name);
+                }
             }
+
+            return new PaginatedResults<string>(accounts, page.ContinuationToken);
         }
 
-        return accounts;
+        return new PaginatedResults<string>(accounts, null);
     }
 
     public async Task<List<string>> ListDatabases(
@@ -172,17 +215,61 @@ public sealed class CosmosService(ISubscriptionService subscriptionService, ITen
             return cachedDatabases;
         }
 
+        var allDatabases = new List<string>();
+        string? continuationToken = null;
+
+        do
+        {
+            var result = await ListPaginatedDatabases(
+                accountName,
+                subscription,
+                limit: null,
+                continuationToken,
+                authMethod,
+                tenant,
+                retryPolicy,
+                cancellationToken);
+
+            allDatabases.AddRange(result.Results);
+            continuationToken = result.NextCursor;
+        }
+        while (continuationToken != null);
+
+        await _cacheService.SetAsync(CacheGroup, cacheKey, allDatabases, s_cacheDurationResources, cancellationToken);
+        return allDatabases;
+    }
+
+    public async Task<PaginatedResults<string>> ListPaginatedDatabases(
+        string accountName,
+        string subscription,
+        int? limit = null,
+        string? continuationToken = null,
+        AuthMethod authMethod = AuthMethod.Credential,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRequiredParameters((nameof(accountName), accountName), (nameof(subscription), subscription));
+
         var client = await GetCosmosClientAsync(accountName, subscription, authMethod, tenant, retryPolicy, cancellationToken);
         var databases = new List<string>();
+        int pageSize = limit ?? 50;
 
-        var iterator = client.GetDatabaseQueryStreamIterator();
-        while (iterator.HasMoreResults)
+        var queryOptions = new QueryRequestOptions
+        {
+            MaxItemCount = pageSize
+        };
+
+        var iterator = client.GetDatabaseQueryStreamIterator(continuationToken: continuationToken, requestOptions: queryOptions);
+
+        if (iterator.HasMoreResults)
         {
             using ResponseMessage dbResponse = await iterator.ReadNextAsync(cancellationToken);
             if (!dbResponse.IsSuccessStatusCode)
             {
                 throw new Exception(dbResponse.ErrorMessage);
             }
+
             using JsonDocument dbsQueryResultDoc = JsonDocument.Parse(dbResponse.Content);
             if (dbsQueryResultDoc.RootElement.TryGetProperty("Databases", out JsonElement documentsElement))
             {
@@ -195,10 +282,11 @@ public sealed class CosmosService(ISubscriptionService subscriptionService, ITen
                     }
                 }
             }
+
+            return new PaginatedResults<string>(databases, dbResponse.ContinuationToken);
         }
 
-        await _cacheService.SetAsync(CacheGroup, cacheKey, databases, s_cacheDurationResources, cancellationToken);
-        return databases;
+        return new PaginatedResults<string>(databases, null);
     }
 
     public async Task<List<string>> ListContainers(
@@ -220,19 +308,66 @@ public sealed class CosmosService(ISubscriptionService subscriptionService, ITen
             return cachedContainers;
         }
 
+        var allContainers = new List<string>();
+        string? continuationToken = null;
+
+        do
+        {
+            var result = await ListPaginatedContainers(
+                accountName,
+                databaseName,
+                subscription,
+                limit: null,
+                continuationToken,
+                authMethod,
+                tenant,
+                retryPolicy,
+                cancellationToken);
+
+            allContainers.AddRange(result.Results);
+            continuationToken = result.NextCursor;
+        }
+        while (continuationToken != null);
+
+        await _cacheService.SetAsync(CacheGroup, cacheKey, allContainers, s_cacheDurationResources, cancellationToken);
+        return allContainers;
+    }
+
+    public async Task<PaginatedResults<string>> ListPaginatedContainers(
+        string accountName,
+        string databaseName,
+        string subscription,
+        int? limit = null,
+        string? continuationToken = null,
+        AuthMethod authMethod = AuthMethod.Credential,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRequiredParameters((nameof(accountName), accountName), (nameof(databaseName), databaseName), (nameof(subscription), subscription));
+
         var client = await GetCosmosClientAsync(accountName, subscription, authMethod, tenant, retryPolicy, cancellationToken);
         var containers = new List<string>();
+        int pageSize = limit ?? 50;
 
         var database = client.GetDatabase(databaseName);
-        var iterator = database.GetContainerQueryStreamIterator();
-        while (iterator.HasMoreResults)
+
+        var queryOptions = new QueryRequestOptions
         {
-            using ResponseMessage containerRResponse = await iterator.ReadNextAsync(cancellationToken);
-            if (!containerRResponse.IsSuccessStatusCode)
+            MaxItemCount = pageSize
+        };
+
+        var iterator = database.GetContainerQueryStreamIterator(continuationToken: continuationToken, requestOptions: queryOptions);
+
+        if (iterator.HasMoreResults)
+        {
+            using ResponseMessage containerResponse = await iterator.ReadNextAsync(cancellationToken);
+            if (!containerResponse.IsSuccessStatusCode)
             {
-                throw new Exception(containerRResponse.ErrorMessage);
+                throw new Exception(containerResponse.ErrorMessage);
             }
-            using JsonDocument containersQueryResultDoc = JsonDocument.Parse(containerRResponse.Content);
+
+            using JsonDocument containersQueryResultDoc = JsonDocument.Parse(containerResponse.Content);
             if (containersQueryResultDoc.RootElement.TryGetProperty("DocumentCollections", out JsonElement containersElement))
             {
                 foreach (JsonElement containerElement in containersElement.EnumerateArray())
@@ -244,10 +379,11 @@ public sealed class CosmosService(ISubscriptionService subscriptionService, ITen
                     }
                 }
             }
+
+            return new PaginatedResults<string>(containers, containerResponse.ContinuationToken);
         }
 
-        await _cacheService.SetAsync(CacheGroup, cacheKey, containers, s_cacheDurationResources, cancellationToken);
-        return containers;
+        return new PaginatedResults<string>(containers, null);
     }
 
     public async Task<List<JsonElement>> QueryItems(

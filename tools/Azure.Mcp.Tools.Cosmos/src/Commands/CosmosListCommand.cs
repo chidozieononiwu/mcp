@@ -4,12 +4,14 @@
 using System.Net;
 using Azure.Mcp.Core.Commands.Subscription;
 using Azure.Mcp.Core.Extensions;
+using Azure.Mcp.Core.Models.Option;
 using Azure.Mcp.Tools.Cosmos.Options;
 using Azure.Mcp.Tools.Cosmos.Services;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Mcp.Core.Commands;
 using Microsoft.Mcp.Core.Extensions;
+using Microsoft.Mcp.Core.Models;
 using Microsoft.Mcp.Core.Models.Command;
 
 namespace Azure.Mcp.Tools.Cosmos.Commands;
@@ -44,6 +46,8 @@ public sealed class CosmosListCommand(ILogger<CosmosListCommand> logger) : Subsc
         base.RegisterOptions(command);
         command.Options.Add(CosmosOptionDefinitions.AccountOptional);
         command.Options.Add(CosmosOptionDefinitions.DatabaseOptional);
+        command.Options.Add(OptionDefinitions.Pagination.PageSize);
+        command.Options.Add(OptionDefinitions.Pagination.SkipToken);
         command.Validators.Add(result =>
         {
             // Validate that --account is provided when --database is specified
@@ -60,6 +64,8 @@ public sealed class CosmosListCommand(ILogger<CosmosListCommand> logger) : Subsc
         var options = base.BindOptions(parseResult);
         options.Account = parseResult.GetValueOrDefault<string?>(CosmosOptionDefinitions.AccountOptional.Name);
         options.Database = parseResult.GetValueOrDefault<string?>(CosmosOptionDefinitions.DatabaseOptional.Name);
+        options.PageSize = parseResult.GetValueOrDefault<int?>(OptionDefinitions.Pagination.PageSize);
+        options.SkipToken = parseResult.GetValueOrDefault<string?>(OptionDefinitions.Pagination.SkipToken);
         return options;
     }
 
@@ -78,47 +84,50 @@ public sealed class CosmosListCommand(ILogger<CosmosListCommand> logger) : Subsc
 
             if (!string.IsNullOrEmpty(options.Database))
             {
-                // List containers in the specified database
-                var containers = await cosmosService.ListContainers(
+                // List containers in the specified database (paginated)
+                var paginatedResults = await cosmosService.ListPaginatedContainers(
                     options.Account!,
                     options.Database!,
                     options.Subscription!,
+                    options.PageSize,
+                    options.SkipToken,
                     options.AuthMethod ?? AuthMethod.Credential,
                     options.Tenant,
                     options.RetryPolicy,
                     cancellationToken);
 
-                context.Response.Results = ResponseResult.Create(
-                    new(null, null, containers ?? []),
-                    CosmosJsonContext.Default.CosmosListCommandResult);
+                context.Response.Results = ResponseResult.Create(paginatedResults,
+                    CosmosJsonContext.Default.PaginatedResultsString);
             }
             else if (!string.IsNullOrEmpty(options.Account))
             {
-                // List databases in the specified account
-                var databases = await cosmosService.ListDatabases(
+                // List databases in the specified account (paginated)
+                var paginatedResults = await cosmosService.ListPaginatedDatabases(
                     options.Account!,
                     options.Subscription!,
+                    options.PageSize,
+                    options.SkipToken,
                     options.AuthMethod ?? AuthMethod.Credential,
                     options.Tenant,
                     options.RetryPolicy,
                     cancellationToken);
 
-                context.Response.Results = ResponseResult.Create(
-                    new(null, databases ?? [], null),
-                    CosmosJsonContext.Default.CosmosListCommandResult);
+                context.Response.Results = ResponseResult.Create(paginatedResults,
+                    CosmosJsonContext.Default.PaginatedResultsString);
             }
             else
             {
-                // List all accounts in the subscription
-                var accounts = await cosmosService.GetCosmosAccounts(
+                // List all accounts in the subscription (paginated)
+                var paginatedResults = await cosmosService.GetPaginatedCosmosAccounts(
                     options.Subscription!,
+                    options.PageSize,
+                    options.SkipToken,
                     options.Tenant,
                     options.RetryPolicy,
                     cancellationToken);
 
-                context.Response.Results = ResponseResult.Create(
-                    new(accounts ?? [], null, null),
-                    CosmosJsonContext.Default.CosmosListCommandResult);
+                context.Response.Results = ResponseResult.Create(paginatedResults,
+                    CosmosJsonContext.Default.PaginatedResultsString);
             }
         }
         catch (Exception ex)
@@ -142,5 +151,5 @@ public sealed class CosmosListCommand(ILogger<CosmosListCommand> logger) : Subsc
         _ => base.GetStatusCode(ex)
     };
 
-    internal record CosmosListCommandResult(List<string>? Accounts, List<string>? Databases, IReadOnlyList<string>? Containers);
+    internal record CosmosListCommandResult(List<string>? Accounts, List<string>? Databases, IReadOnlyList<string>? Containers, string? ContinuationToken);
 }

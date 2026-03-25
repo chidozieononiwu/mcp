@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using Azure.Mcp.Core.Options;
+using Microsoft.Mcp.Core.Models;
 
 namespace Azure.Mcp.Tools.Cosmos.Services;
 
@@ -9,6 +10,14 @@ public interface ICosmosService : IAsyncDisposable
 {
     Task<List<string>> GetCosmosAccounts(
         string subscription,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        CancellationToken cancellationToken = default);
+
+    Task<PaginatedResults<string>> GetPaginatedCosmosAccounts(
+        string subscription,
+        int? limit = null,
+        string? continuationToken = null,
         string? tenant = null,
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default);
@@ -21,10 +30,31 @@ public interface ICosmosService : IAsyncDisposable
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default);
 
+    Task<PaginatedResults<string>> ListPaginatedDatabases(
+        string accountName,
+        string subscription,
+        int? limit = null,
+        string? continuationToken = null,
+        AuthMethod authMethod = AuthMethod.Credential,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        CancellationToken cancellationToken = default);
+
     Task<List<string>> ListContainers(
         string accountName,
         string databaseName,
         string subscription,
+        AuthMethod authMethod = AuthMethod.Credential,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        CancellationToken cancellationToken = default);
+
+    Task<PaginatedResults<string>> ListPaginatedContainers(
+        string accountName,
+        string databaseName,
+        string subscription,
+        int? limit = null,
+        string? continuationToken = null,
         AuthMethod authMethod = AuthMethod.Credential,
         string? tenant = null,
         RetryPolicyOptions? retryPolicy = null,

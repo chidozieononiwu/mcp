@@ -4,6 +4,7 @@
 using Azure.Mcp.Core.Options;
 using Azure.Mcp.Core.Services.Azure;
 using Azure.Mcp.Tools.Storage.Models;
+using Microsoft.Mcp.Core.Models;
 
 namespace Azure.Mcp.Tools.Storage.Services;
 
@@ -16,7 +17,7 @@ public interface IStorageService
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default);
 
-    Task<PaginatedResourceQueryResults<StorageAccountInfo>> ListAccountDetails(
+    Task<PaginatedResults<StorageAccountInfo>> ListAccountDetails(
         string subscription,
         int limit = 50,
         string? skipToken = null,
