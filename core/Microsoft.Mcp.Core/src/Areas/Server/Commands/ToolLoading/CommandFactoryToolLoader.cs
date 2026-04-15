@@ -293,6 +293,11 @@ public sealed class CommandFactoryToolLoader(
         {
             meta ??= new();
             meta["PaginationHint"] = metadata.SupportsPagination;
+            meta["ui"] = new JsonObject
+            {
+                ["resourceUri"] = Services.Pagination.TableAppResource.UriPrefix,
+                ["prefersBorder"] = false,
+            };
         }
         tool.Meta = meta;
 
@@ -350,9 +355,12 @@ public sealed class CommandFactoryToolLoader(
             return null;
         }
 
+        var ui = uiNode.DeepClone().AsObject();
+        ui.TryAdd("prefersBorder", false);
+
         return new JsonObject
         {
-            ["ui"] = uiNode.DeepClone(),
+            ["ui"] = ui,
         };
     }
 }

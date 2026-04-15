@@ -155,6 +155,11 @@ public sealed class NamespaceToolLoader(
                 tool.Meta = new JsonObject
                 {
                     ["PaginationHint"] = true,
+                    ["ui"] = new JsonObject
+                    {
+                        ["resourceUri"] = Services.Pagination.TableAppResource.UriPrefix,
+                        ["prefersBorder"] = false,
+                    },
                 };
             }
 
@@ -489,11 +494,17 @@ public sealed class NamespaceToolLoader(
                 return finalResponse;
             }
 
-            return new CallToolResult
+            var callResult = new CallToolResult
             {
                 Content = [new TextContentBlock { Text = jsonResponse }],
                 IsError = isError
             };
+
+            // Propagate _meta.ui from the command response to the CallToolResult.Meta
+            // so that the host (e.g. VS Code) can render the MCP App inline.
+            callResult.Meta = ExtractUiMeta(jsonResponse);
+
+            return callResult;
         }
         catch (Exception ex)
         {
@@ -805,6 +816,29 @@ public sealed class NamespaceToolLoader(
         }
 
         return (null, new Dictionary<string, JsonElement>());
+    }
+
+    /// <summary>
+    /// Extracts _meta.ui from the serialized command response JSON and returns it
+    /// as a <see cref="JsonObject"/> suitable for <see cref="CallToolResult.Meta"/>.
+    /// Returns <c>null</c> when no ui metadata is present.
+    /// </summary>
+    private static JsonObject? ExtractUiMeta(string jsonResponse)
+    {
+        var doc = JsonNode.Parse(jsonResponse);
+        var uiNode = doc?["results"]?["_meta"]?["ui"];
+        if (uiNode is null)
+        {
+            return null;
+        }
+
+        var ui = uiNode.DeepClone().AsObject();
+        ui.TryAdd("prefersBorder", false);
+
+        return new JsonObject
+        {
+            ["ui"] = ui,
+        };
     }
 
     /// <summary>

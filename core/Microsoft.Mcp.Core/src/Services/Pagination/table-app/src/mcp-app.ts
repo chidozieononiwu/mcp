@@ -13,6 +13,7 @@ import type { CallToolResult } from "@modelcontextprotocol/ext-apps";
 import "./mcp-app.css";
 
 // ── DOM refs ──
+const appRoot = document.getElementById("app-root")!;
 const statusEl = document.getElementById("status")!;
 const errorEl = document.getElementById("error")!;
 const tableEl = document.getElementById("table-container")!;
@@ -73,12 +74,18 @@ function renderTable(items: Record<string, unknown>[]) {
   statusEl.textContent = `${items.length} item(s)`;
 }
 
+function notifySize() {
+  const height = appRoot.offsetHeight;
+  app.sendSizeChanged({ height });
+}
+
 function showPage(index: number) {
   if (index < 0 || index >= pageCache.length) return;
   currentPage = index;
   renderTable(pageCache[index].items);
   nextPageUri = pageCache[index].nextPage;
   updateControls();
+  notifySize();
 }
 
 async function fetchAndShowPage(uri: string) {
@@ -89,6 +96,7 @@ async function fetchAndShowPage(uri: string) {
     const contents = result.contents ?? [];
     if (contents.length === 0) {
       showError("Empty resource response.");
+      notifySize();
       return;
     }
     const textContent = contents[0];
@@ -101,6 +109,7 @@ async function fetchAndShowPage(uri: string) {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     showError("Failed to fetch page: " + msg);
+    notifySize();
   }
 }
 
@@ -148,7 +157,7 @@ function handleHostContextChanged(ctx: McpUiHostContext) {
 }
 
 // ── Create MCP App ──
-const app = new App({ name: "table-app", version: "1.0.0" });
+const app = new App({ name: "table-app", version: "1.0.0" }, {}, { autoResize: false });
 
 app.ontoolresult = (result: CallToolResult) => {
   // Debug: show raw tool result
@@ -160,14 +169,15 @@ app.ontoolresult = (result: CallToolResult) => {
   statusEl.textContent = `pagedResourceUri: ${uri ?? "(none)"}`;
 
   if (uri) {
-    // Reset state for new tool result
+    // Show the app and reset state for new tool result
+    document.body.classList.add("active");
+    appRoot.style.display = "";
     pageCache.length = 0;
     currentPage = -1;
     nextPageUri = null;
     fetchAndShowPage(uri);
-  } else {
-    showError("No pagination URI found in tool result. Raw: " + JSON.stringify(result));
   }
+  // If no pagination URI, stay hidden — this result isn't paginated
 };
 
 app.onhostcontextchanged = handleHostContextChanged;
@@ -182,5 +192,6 @@ app.connect().then(() => {
   if (ctx) {
     handleHostContextChanged(ctx);
   }
-  statusEl.textContent = "Waiting for data...";
+  // Start with zero height until paginated content arrives
+  app.sendSizeChanged({ width: 0, height: 0 });
 });
