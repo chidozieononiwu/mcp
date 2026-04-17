@@ -41,6 +41,27 @@ public sealed class AcrService(ISubscriptionService subscriptionService, ITenant
         return registries;
     }
 
+    public async Task<PagedResourceQueryResults<AcrRegistryInfo>> ListRegistriesPaged(
+        string subscription,
+        string? resourceGroup = null,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        string? skipToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRequiredParameters((nameof(subscription), subscription));
+
+        return await ExecutePagedResourceQueryAsync(
+            "Microsoft.ContainerRegistry/registries",
+            resourceGroup,
+            subscription,
+            retryPolicy,
+            ConvertToAcrRegistryInfoModel,
+            tenant: tenant,
+            skipToken: skipToken,
+            cancellationToken: cancellationToken);
+    }
+
     private async Task<AcrRegistryInfo> GetRegistry(
         string subscription,
         string registry,
@@ -129,6 +150,57 @@ public sealed class AcrService(ISubscriptionService subscriptionService, ITenant
         }
 
         return result;
+    }
+
+    public async Task<PagedResourceQueryResults<string>> ListRegistryRepositoriesPaged(
+        string subscription,
+        string registry,
+        string? resourceGroup = null,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        string? continuationToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRequiredParameters((nameof(subscription), subscription), (nameof(registry), registry));
+
+        var reg = await GetRegistry(subscription, registry, resourceGroup, tenant, retryPolicy, cancellationToken);
+        if (string.IsNullOrWhiteSpace(reg.LoginServer))
+        {
+            return new PagedResourceQueryResults<string>([], null);
+        }
+
+        if (!string.IsNullOrEmpty(reg.LoginServer))
+        {
+            var acrEndpointString = $"https://{reg.LoginServer}";
+            EndpointValidator.ValidateAzureServiceEndpoint(acrEndpointString, "acr", TenantService.CloudConfiguration.ArmEnvironment);
+        }
+
+        var credential = await GetCredential(tenant, cancellationToken);
+        var options = ConfigureRetryPolicy(AddDefaultPolicies(new ContainerRegistryClientOptions()), retryPolicy);
+        options.Transport = new HttpClientTransport(TenantService.GetClient());
+        options.Audience = GetAcrAudience();
+        var acrEndpoint = new Uri($"https://{reg.LoginServer}");
+        var client = new ContainerRegistryClient(acrEndpoint, credential, options);
+
+        var items = new List<string>();
+        string? nextContinuationToken = null;
+
+        await foreach (var page in client.GetRepositoryNamesAsync(cancellationToken)
+            .AsPages(continuationToken, pageSizeHint: 20))
+        {
+            foreach (var repo in page.Values)
+            {
+                if (!string.IsNullOrWhiteSpace(repo))
+                {
+                    items.Add(repo);
+                }
+            }
+
+            nextContinuationToken = page.ContinuationToken;
+            break; // Only fetch one page
+        }
+
+        return new PagedResourceQueryResults<string>(items, nextContinuationToken);
     }
 
     /// <summary>

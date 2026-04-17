@@ -1,7 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Azure.Mcp.Core.Services.Pagination;
+using Azure.Mcp.Tools.Storage.Commands.Account;
 using Azure.Mcp.Tools.Storage.Commands.Blob.Container;
 using Azure.Mcp.Tools.Storage.Models;
 using Azure.Mcp.Tools.Storage.Options;
@@ -19,6 +22,7 @@ namespace Azure.Mcp.Tools.Storage.Commands.Blob;
 public sealed class BlobGetCommand : BaseContainerCommand<BlobGetOptions>
 {
     private const string CommandTitle = "Get Storage Blob Details";
+    private const string OperationName = "storage.blob.get";
     private readonly ILogger<BlobGetCommand> _logger;
     private readonly IStorageService _storageService;
     private readonly IPaginationService? _paginationService;
@@ -85,7 +89,12 @@ public sealed class BlobGetCommand : BaseContainerCommand<BlobGetOptions>
         {
             if (_paginationService is not null && string.IsNullOrEmpty(options.Blob))
             {
-                return await ExecutePagedAsync(context, options, cancellationToken);
+                if (context.SupportsApps)
+                {
+                    return await GetPagedResourceUriAsync(context, options, cancellationToken);
+                }
+
+                return await GetPagedResultsAsync(context, options, cancellationToken);
             }
 
             var details = await _storageService.GetBlobDetails(
@@ -116,17 +125,43 @@ public sealed class BlobGetCommand : BaseContainerCommand<BlobGetOptions>
         }
     }
 
-    private async Task<CommandResponse> ExecutePagedAsync(CommandContext context, BlobGetOptions options, CancellationToken cancellationToken)
+    private async Task<CommandResponse> GetPagedResourceUriAsync(CommandContext context, BlobGetOptions options, CancellationToken cancellationToken)
     {
-        var operationName = nameof(BlobGetCommand);
-        var fingerprintParams = new Dictionary<string, string?>
+        var fingerprint = ComputeFingerprint(options);
+
+        PageFetchDelegate fetcher = async (nativeState, ct) =>
         {
-            ["operation"] = operationName,
-            ["subscription"] = options.Subscription,
-            ["account"] = options.Account,
-            ["container"] = options.Container,
+            var adapter = new KqlPaginationAdapter<BlobInfo>(
+                continuationToken => _storageService.GetBlobDetailsPaged(
+                    options.Account!, options.Container!, options.Subscription!,
+                    options.Tenant, options.RetryPolicy, continuationToken, ct));
+
+            var page = nativeState is null
+                ? await adapter.FetchFirstPageAsync(ct)
+                : await adapter.FetchNextPageAsync(nativeState, ct);
+
+            var itemsJson = JsonSerializer.Serialize(page.Items, StorageJsonContext.Default.ListBlobInfo);
+            return new PaginationPageData(itemsJson, page.NativeState);
         };
-        var fingerprint = _paginationService!.ComputeRequestFingerprint(fingerprintParams);
+
+        var cursorId = await _paginationService!.SaveCursorAsync(
+            KqlPaginationAdapter<BlobInfo>.ProviderName, OperationName,
+            fingerprint, PaginationResource.InitialNativeState,
+            fetcher: fetcher,
+            cancellationToken: cancellationToken);
+
+        var resourceUri = $"{PaginationResource.UriPrefix}{cursorId}";
+
+        context.Response.Results = ResponseResult.Create(
+            new BlobGetResourceResult(resourceUri, new AccountGetCommand.ResponseMeta(new AccountGetCommand.ResponseMetaUi(TableAppResource.UriPrefix))),
+            StorageJsonContext.Default.BlobGetResourceResult);
+
+        return context.Response;
+    }
+
+    private async Task<CommandResponse> GetPagedResultsAsync(CommandContext context, BlobGetOptions options, CancellationToken cancellationToken)
+    {
+        var fingerprint = ComputeFingerprint(options);
 
         var adapter = new KqlPaginationAdapter<BlobInfo>(
             continuationToken => _storageService.GetBlobDetailsPaged(
@@ -140,7 +175,7 @@ public sealed class BlobGetCommand : BaseContainerCommand<BlobGetOptions>
         }
         else
         {
-            var cursorRecord = await _paginationService.LoadAndValidateCursorAsync(
+            var cursorRecord = await _paginationService!.LoadAndValidateCursorAsync(
                 options.Cursor!, fingerprint, cancellationToken);
             pagedResult = await adapter.FetchNextPageAsync(cursorRecord.NativeState, cancellationToken);
         }
@@ -148,8 +183,8 @@ public sealed class BlobGetCommand : BaseContainerCommand<BlobGetOptions>
         string? nextCursor = null;
         if (pagedResult.NativeState is not null)
         {
-            nextCursor = await _paginationService.SaveCursorAsync(
-                KqlPaginationAdapter<BlobInfo>.ProviderName, operationName,
+            nextCursor = await _paginationService!.SaveCursorAsync(
+                KqlPaginationAdapter<BlobInfo>.ProviderName, OperationName,
                 fingerprint, pagedResult.NativeState,
                 cancellationToken: cancellationToken);
         }
@@ -161,5 +196,16 @@ public sealed class BlobGetCommand : BaseContainerCommand<BlobGetOptions>
         return context.Response;
     }
 
+    private string ComputeFingerprint(BlobGetOptions options) =>
+        _paginationService!.ComputeRequestFingerprint(new Dictionary<string, string?>
+        {
+            ["operation"] = OperationName,
+            ["subscription"] = options.Subscription,
+            ["account"] = options.Account,
+            ["container"] = options.Container,
+        });
+
     internal record BlobGetCommandResult(List<BlobInfo> Blobs, string? NextCursor = null);
+
+    internal record BlobGetResourceResult(string PagedResourceUri, [property: JsonPropertyName("_meta")] AccountGetCommand.ResponseMeta? Meta = null);
 }

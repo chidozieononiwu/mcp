@@ -79,10 +79,19 @@ public sealed class PaginationResource(
             ? null
             : record.NativeState;
 
-        var pageData = await fetcher(nativeState, cancellationToken);
+        PaginationPageData pageData;
+        try
+        {
+            pageData = await fetcher(nativeState, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching page for cursor {CursorId} (operation={Operation})", cursorId, record.Operation);
+            return CreateErrorResult(uri, $"Failed to fetch page: {ex.Message}");
+        }
 
         string? nextPageUri = null;
-        if (pageData.NextNativeState is not null)
+        if (!String.IsNullOrEmpty(pageData.NextNativeState))
         {
             var nextCursorId = await paginationService.SaveCursorAsync(
                 record.Provider, record.Operation, record.RequestFingerprint,

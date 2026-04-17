@@ -15,11 +15,28 @@ public interface IAcrService
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResourceQueryResults<AcrRegistryInfo>> ListRegistriesPaged(
+        string subscription,
+        string? resourceGroup = null,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        string? skipToken = null,
+        CancellationToken cancellationToken = default);
+
     Task<Dictionary<string, List<string>>> ListRegistryRepositories(
         string subscription,
         string? resourceGroup = null,
         string? registry = null,
         string? tenant = null,
         RetryPolicyOptions? retryPolicy = null,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResourceQueryResults<string>> ListRegistryRepositoriesPaged(
+        string subscription,
+        string registry,
+        string? resourceGroup = null,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        string? continuationToken = null,
         CancellationToken cancellationToken = default);
 }

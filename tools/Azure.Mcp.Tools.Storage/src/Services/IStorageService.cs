@@ -61,6 +61,14 @@ public interface IStorageService
         RetryPolicyOptions? retryPolicy = null,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResourceQueryResults<ContainerInfo>> GetContainerDetailsPaged(
+        string account,
+        string subscription,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        string? continuationToken = null,
+        CancellationToken cancellationToken = default);
+
     Task<ContainerInfo> CreateContainer(
         string account,
         string container,

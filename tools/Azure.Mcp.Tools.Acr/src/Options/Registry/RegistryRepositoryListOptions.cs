@@ -3,4 +3,7 @@
 
 namespace Azure.Mcp.Tools.Acr.Options.Registry;
 
-public class RegistryRepositoryListOptions : BaseAcrOptions;
+public class RegistryRepositoryListOptions : BaseAcrOptions
+{
+    public string? Cursor { get; set; }
+}

@@ -11,6 +11,8 @@
     <NoWarn>$(NoWarn);SYSLIB0020</NoWarn>
     <!-- Suppress MCPEXP001 for experimental features in MCP -->
     <NoWarn>$(NoWarn);MCPEXP001</NoWarn>
+    <!-- Suppress NU1903 until Microsoft.Identity.Web updates its System.Security.Cryptography.Xml transitive dependency -->
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
     <BuildNative Condition="'$(BuildNative)' == ''">false</BuildNative>
     <!-- Identify Server Projects -->
     <_RelativeProjectDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)').Replace($([System.IO.Path]::GetFullPath('$(RepoRoot)')), ''))</_RelativeProjectDir>

@@ -341,6 +341,50 @@ public class StorageService(
         return containers;
     }
 
+    public async Task<PagedResourceQueryResults<ContainerInfo>> GetContainerDetailsPaged(
+        string account,
+        string subscription,
+        string? tenant = null,
+        RetryPolicyOptions? retryPolicy = null,
+        string? continuationToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRequiredParameters((nameof(account), account), (nameof(subscription), subscription));
+
+        var blobServiceClient = await CreateBlobServiceClient(account, tenant, retryPolicy, cancellationToken);
+
+        var items = new List<ContainerInfo>();
+        string? nextContinuationToken = null;
+
+        await foreach (var page in blobServiceClient.GetBlobContainersAsync(cancellationToken: cancellationToken)
+            .AsPages(continuationToken, pageSizeHint: 10))
+        {
+            foreach (var containerItem in page.Values)
+            {
+                var properties = containerItem.Properties;
+                items.Add(new(
+                    containerItem.Name,
+                    properties.LastModified,
+                    properties.ETag.ToString(),
+                    properties.Metadata,
+                    properties.LeaseStatus?.ToString(),
+                    properties.LeaseState?.ToString(),
+                    properties.LeaseDuration?.ToString(),
+                    properties.PublicAccess?.ToString(),
+                    properties.HasImmutabilityPolicy,
+                    properties.HasLegalHold,
+                    properties.DeletedOn,
+                    properties.RemainingRetentionDays,
+                    properties.HasImmutableStorageWithVersioning));
+            }
+
+            nextContinuationToken = page.ContinuationToken;
+            break; // Only fetch one page
+        }
+
+        return new PagedResourceQueryResults<ContainerInfo>(items, nextContinuationToken);
+    }
+
     public async Task<ContainerInfo> CreateContainer(
         string account,
         string container,

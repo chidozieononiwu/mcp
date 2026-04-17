@@ -3,4 +3,7 @@
 
 namespace Azure.Mcp.Tools.Storage.Options.Blob.Container;
 
-public class ContainerGetOptions : BaseContainerOptions;
+public class ContainerGetOptions : BaseContainerOptions
+{
+    public string? Cursor { get; set; }
+}
