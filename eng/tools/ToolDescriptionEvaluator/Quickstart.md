@@ -44,10 +44,10 @@ Or copy `.env.example` to `.env` and fill in your credentials.
     ./scripts/Run-ToolDescriptionEvaluator.ps1
 
     # For Fabric MCP Server
-    ./scripts/Run-ToolDescriptionEvaluator.ps1 -Area "Acr"
+    ./scripts/Run-ToolDescriptionEvaluator.ps1 -ServerName Fabric.Mcp.Server -Area "workspace"
 
-    # Build the Azure.Mcp.Server as part of the run
-    ./scripts/Run-ToolDescriptionEvaluator.ps1 -BuildAzureMcp
+    # Build the selected server as part of the run
+    ./scripts/Run-ToolDescriptionEvaluator.ps1 -BuildServer
     ```
 
 4. Check if your tool ranks in the top 3 for the prompts (ideally #1) and with a score of at least `0.4`
@@ -77,11 +77,14 @@ dotnet run -- --test-single-tool \
 
 ### Testing Different Servers
 
-By default, the tool tests Azure MCP Server tools. To test other servers:
+By default, the tool tests Azure MCP Server tools. The `--server` value may be any server under the repository's `servers` directory, using either a short name or full server project name:
 
 ```bash
 # Test Fabric MCP Server tools
 dotnet run -- --server "Fabric"
+
+# Equivalent full project name
+dotnet run -- --server "Fabric.Mcp.Server"
 
 # Use a specific executable path (useful for custom builds)
 dotnet run -- --server-exe "./path/to/fabmcp.dll"

@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using Microsoft.Extensions.VectorData;
 using ToolSelection.Models;
 using ToolSelection.Services;
@@ -17,12 +18,6 @@ class Program
 
     private const string SpaceReplacement = "_";
     private const string TestToolIdPrefix = $"test{SpaceReplacement}tool{SpaceReplacement}";
-    private static readonly IReadOnlyDictionary<string, string> ValidServers =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Azure"] = "azmcp",
-            ["Fabric"] = "fabmcp"
-        };
 
     static async Task Main(string[] args)
     {
@@ -49,7 +44,7 @@ class Program
         string? customOutputFileName = null; // Optional custom output file name
         string? areaFilter = null; // Optional area filter for prompts
         string? serverName = null; // Optional server name. Defaults to "Azure".
-        string? serverExePath = null; // Optional server executable path. Supercedes server name if provided.
+        string? serverExePath = null; // Optional server executable path. Supersedes server name if provided.
 
         // Single tool test mode options
         bool testSingleToolMode = false; // Optional mode to test a single tool description
@@ -136,11 +131,6 @@ class Program
             else if (args[i] == "--server" && i + 1 < args.Length)
             {
                 serverName = args[i + 1];
-
-                if (!ValidServers.ContainsKey(serverName))
-                {
-                    throw new ArgumentException($"Invalid server name: {serverName}. Allowed values are {string.Join(", ", ValidServers.Select(kvp => $"'{kvp.Key}'"))} (case-insensitive).");
-                }
             }
             else if (args[i] == "--server-exe" && i + 1 < args.Length)
             {
@@ -181,10 +171,11 @@ class Program
                 throw new ArgumentException("--tool-description and --prompt arguments are only valid in --test-single-tool mode.");
             }
 
-            serverName ??= "Azure";
             string exeDir = AppContext.BaseDirectory;
             string repoRoot = FindRepoRoot(exeDir);
             string toolDir = FindToolDir(repoRoot, exeDir);
+            serverName = ResolveServerName(repoRoot, serverName ?? "Azure");
+            string serverCliName = GetServerCliName(repoRoot, serverName);
 
             // Load environment variables from .env file if it exists
             await LoadDotEnvFile(toolDir);
@@ -243,13 +234,13 @@ class Program
                 if (listToolsResult == null)
                 {
                     Console.WriteLine($"⚠️  Failed to load tools from {customToolsFileResolved}, falling back to dynamic loading from {serverName}.Mcp.Server executable");
-                    listToolsResult = await LoadToolsDynamicallyAsync(toolDir, serverName, serverExePath);
+                    listToolsResult = await LoadToolsDynamicallyAsync(toolDir, serverName, serverCliName, serverExePath);
                 }
             }
             else
             {
                 Console.WriteLine($"🔄 Loading tools dynamically from {serverName}.Mcp.Server executable");
-                listToolsResult = await LoadToolsDynamicallyAsync(toolDir, serverName, serverExePath) ?? await LoadToolsFromJsonAsync(Path.Combine(toolDir, "tools.json"));
+                listToolsResult = await LoadToolsDynamicallyAsync(toolDir, serverName, serverCliName, serverExePath) ?? await LoadToolsFromJsonAsync(Path.Combine(toolDir, "tools.json"));
             }
 
             var tools = listToolsResult?.Tools ?? listToolsResult?.ConsolidatedTools;
@@ -341,7 +332,7 @@ class Program
                 if (toolNameAndPrompts == null)
                 {
                     Console.WriteLine($"⚠️  Failed to load prompts from {customPromptsFileResolved}, falling back to loading from default prompts file (e2eTestPrompts.md) for {serverName}.Mcp.Server");
-                    listToolsResult = await LoadToolsDynamicallyAsync(toolDir, serverName, serverExePath);
+                    listToolsResult = await LoadToolsDynamicallyAsync(toolDir, serverName, serverCliName, serverExePath);
                 }
             }
             else
@@ -499,7 +490,7 @@ class Program
         return Path.GetFullPath(Path.Combine(exeDir, "..", "..", ".."));
     }
 
-    private static async Task<ListToolsResult?> LoadToolsDynamicallyAsync(string toolDir, string server, string? serverExePath)
+    private static async Task<ListToolsResult?> LoadToolsDynamicallyAsync(string toolDir, string server, string serverExe, string? serverExePath)
     {
         // Locate mcp server artifact across common build outputs (servers/core, Debug/Release)
         var exeDir = AppContext.BaseDirectory;
@@ -517,7 +508,6 @@ class Program
         }
         else
         {
-            string serverExe = ValidServers[server];
             string[] candidateNames = new[] { ".exe", "", ".dll" };
 
             foreach (var root in searchRoots.Where(Directory.Exists))
@@ -602,6 +592,41 @@ class Program
         }
 
         return result;
+    }
+
+    private static string ResolveServerName(string repoRoot, string serverName)
+    {
+        const string serverSuffix = ".Mcp.Server";
+        string shortServerName = serverName.EndsWith(serverSuffix, StringComparison.OrdinalIgnoreCase)
+            ? serverName[..^serverSuffix.Length]
+            : serverName;
+
+        string serversDirectory = Path.Combine(repoRoot, "servers");
+        string? matchingDirectory = Directory.EnumerateDirectories(serversDirectory, $"*{serverSuffix}", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileName)
+            .FirstOrDefault(directoryName => string.Equals(directoryName, $"{shortServerName}{serverSuffix}", StringComparison.OrdinalIgnoreCase));
+
+        return matchingDirectory is not null
+            ? matchingDirectory[..^serverSuffix.Length]
+            : throw new DirectoryNotFoundException($"Could not find server '{serverName}' under {serversDirectory}.");
+    }
+
+    private static string GetServerCliName(string repoRoot, string serverName)
+    {
+        string serverProject = Path.Combine(repoRoot, "servers", $"{serverName}.Mcp.Server", "src", $"{serverName}.Mcp.Server.csproj");
+        if (!File.Exists(serverProject))
+        {
+            throw new FileNotFoundException($"Could not find server project for '{serverName}'.", serverProject);
+        }
+
+        string? cliName = XDocument.Load(serverProject)
+            .Descendants("CliName")
+            .Select(element => element.Value)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+        return !string.IsNullOrWhiteSpace(cliName)
+            ? cliName
+            : throw new InvalidDataException($"Server project does not define CliName: {serverProject}");
     }
 
     private static async Task<ListToolsResult?> LoadToolsFromJsonAsync(string filePath)
@@ -1192,10 +1217,11 @@ class Program
         Console.WriteLine("  --top <N>                     Number of results to display per test (default 5)");
         Console.WriteLine("  --tool-description <text>     A single tool description to test (required with --test-single-tool)");
         Console.WriteLine("  --prompt <text>               Test prompt (required with --test-single-tool, can be repeated)");
-        Console.WriteLine("  --server <name>               Specify the server name (default: Azure). Valid options: Azure, Fabric");
+        Console.WriteLine("  --server <name>               Specify a server under the servers directory (default: Azure)");
+        Console.WriteLine("                                Accepts names such as Azure, Fabric, or Fabric.Mcp.Server");
         Console.WriteLine("                                (ignored in --test-single-tool mode)");
         Console.WriteLine("  --server-exe <path>           Specify the server executable path in the format (examples: ./azmcp.exe, ./azmcp, ./azmcp.dll)");
-        Console.WriteLine("                                If both this and --server are provided, --server is ignored.");
+        Console.WriteLine("                                Overrides executable discovery; --server still selects the default prompts");
         Console.WriteLine("                                (ignored in --test-single-tool mode)");
         Console.WriteLine();
         Console.WriteLine("ENVIRONMENT VARIABLES:");

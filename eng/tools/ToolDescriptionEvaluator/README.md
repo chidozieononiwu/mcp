@@ -69,7 +69,7 @@ dotnet run -- --server "Azure"
 # Test Fabric MCP Server tools
 dotnet run -- --server "Fabric"
 
-# Use a specific server executable path (overrides --server)
+# Use a specific server executable path (overrides executable discovery)
 dotnet run -- --server-exe "./path/to/azmcp.exe"
 dotnet run -- --server-exe "./path/to/fabmcp.dll"
 
@@ -78,9 +78,9 @@ dotnet run -- --server "Fabric" --area "workspace"
 ```
 
 **When to use `--server` vs `--server-exe`:**
-- Use `--server "Azure"` or `--server "Fabric"` when testing the standard Azure or Fabric MCP servers from the repository
+- Use `--server` with a short name such as `Azure` or `Fabric`, or a full project name such as `Fabric.Mcp.Server`, when testing a server from the repository
 - Use `--server-exe` when you need to test a specific build output or custom server executable path
-- If both are provided, `--server-exe` takes precedence
+- If both are provided, `--server-exe` controls the executable while `--server` still selects the default prompts
 
 ### 4. Tool Prefix Filtering Mode
 
@@ -119,7 +119,7 @@ dotnet run -- --tools-file my-tools.json --prompts-file my-prompts.json --area "
 
 ## Input Data Sources
 
-The tool can load data from multiple sources and supports both Azure and Fabric MCP servers:
+The tool can load data from multiple sources for MCP servers under the repository's `servers` directory:
 
 ### Server Selection
 
@@ -158,6 +158,9 @@ You can call the build script in this directory:
 # Run with all areas
 ./Run-ToolDescriptionEvaluator.ps1
 
+# Run against Fabric MCP Server
+./Run-ToolDescriptionEvaluator.ps1 -ServerName Fabric.Mcp.Server
+
 # Run with specific tool prefix filtering
 ./Run-ToolDescriptionEvaluator.ps1 -Area "storage"
 ./Run-ToolDescriptionEvaluator.ps1 -Area "keyvault"
@@ -167,8 +170,9 @@ You can call the build script in this directory:
 ./Run-ToolDescriptionEvaluator.ps1 -Area "keyvault,storage"
 ./Run-ToolDescriptionEvaluator.ps1 -Area "sql,cosmos,functionapp"
 
-# Build Azure MCP Server first, then run with prefix filtering
-./Run-ToolDescriptionEvaluator.ps1 -BuildAzureMcp -Area "sql"
+# Build the selected server first, then run with prefix filtering
+./Run-ToolDescriptionEvaluator.ps1 -BuildServer -Area "sql"
+./Run-ToolDescriptionEvaluator.ps1 -ServerName Fabric.Mcp.Server -BuildServer -Area "workspace"
 ```
 
 or run the following commands directly:

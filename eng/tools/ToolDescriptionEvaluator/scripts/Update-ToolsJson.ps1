@@ -3,17 +3,24 @@
 
 <#
 .SYNOPSIS
-    Updates the tools.json file by calling the "azmcp tools list" command
+    Updates the tools.json file by calling the selected server's "tools list" command
 
 .DESCRIPTION
-    Generates a fresh tools.json by executing the "azmcp tools list" command from an Azure
-    MCP Server Debug or Release build, preferring the former.
+    Generates a fresh tools.json by executing the selected MCP Server Debug or Release build,
+    preferring the former.
 
 .PARAMETER Force
     Overwrite the existing tools.json file without prompting
 
-.PARAMETER BuildAzureMcp
-    Build the root project in Debug mode to ensure tools can be loaded dynamically
+.PARAMETER ServerName
+    Server project name under the servers directory. Defaults to Azure.Mcp.Server.
+
+.PARAMETER BuildServer
+    Build the selected server in Debug mode before generating tools.json.
+    BuildAzureMcp is retained as an alias for backward compatibility.
+
+.PARAMETER OutputPath
+    Output path for the generated JSON. Defaults to the evaluator's src/tools.json file.
 
 .EXAMPLE
     ./Update-ToolsJson.ps1
@@ -24,14 +31,21 @@
     Updates the tools.json file, overwriting without prompting
     
 .EXAMPLE
-    ./Update-ToolsJson.ps1 -BuildAzureMcp
+    ./Update-ToolsJson.ps1 -BuildServer
     Updates the tools.json file after building the Azure MCP Server project in Debug mode
+
+.EXAMPLE
+    ./Update-ToolsJson.ps1 -ServerName Fabric.Mcp.Server -BuildServer -Force
+    Updates the tools.json file using the Fabric MCP Server
 #>
 
 [CmdletBinding()]
 param(
     [switch]$Force,
-    [switch]$BuildAzureMcp
+    [string]$ServerName = 'Azure.Mcp.Server',
+    [Alias('BuildAzureMcp')]
+    [switch]$BuildServer,
+    [string]$OutputPath
 )
 
 Set-StrictMode -Version 3.0
@@ -40,27 +54,42 @@ $ErrorActionPreference = 'Stop'
 # Resolve important paths
 $repoRoot = Resolve-Path "$PSScriptRoot/../../../../" | Select-Object -ExpandProperty Path
 $toolDir  = Resolve-Path "$PSScriptRoot/../src" | Select-Object -ExpandProperty Path
-$jsonFile = "$toolDir/tools.json"
+$jsonFile = $OutputPath ? $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath) : "$toolDir/tools.json"
+$serverDirectory = Join-Path $repoRoot "servers/$ServerName"
+$serverProject = Join-Path $serverDirectory "src/$ServerName.csproj"
+$serverSolution = Join-Path $serverDirectory "$ServerName.slnx"
 
-# Build the whole Azure MCP Server project if needed
-if ($BuildAzureMcp)
-{
-    Write-Host "Building server solution to enable dynamic tool loading..." -ForegroundColor Yellow
-
-    & dotnet build "$repoRoot/servers/Azure.Mcp.Server/Azure.Mcp.Server.slnx"
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to build server solution"
-    }
-
-    Write-Host "Server solution build completed successfully!" -ForegroundColor Green
+if (!(Test-Path $serverProject)) {
+    throw "Server project not found: $serverProject"
 }
 
-# Locate azmcp CLI artifact (platform & build-type agnostic) like Run-ToolDescriptionEvaluator.ps1
-$candidateNames = if ($IsWindows) { @('azmcp.exe','azmcp','azmcp.dll') } else { @('azmcp','azmcp.dll') }
+$serverProperties = & "$repoRoot/eng/scripts/Get-ProjectProperties.ps1" -Path $serverProject
+$cliName = $serverProperties.CliName
+if ([string]::IsNullOrWhiteSpace($cliName)) {
+    throw "CliName is not defined for $ServerName in $serverProject"
+}
+
+if ($BuildServer)
+{
+    if (!(Test-Path $serverSolution)) {
+        throw "Server solution not found: $serverSolution"
+    }
+
+    Write-Host "Building $ServerName to enable dynamic tool loading..." -ForegroundColor Yellow
+
+    & dotnet build $serverSolution
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to build $ServerName"
+    }
+
+    Write-Host "$ServerName build completed successfully!" -ForegroundColor Green
+}
+
+$candidateNames = if ($IsWindows) { @("$cliName.exe", $cliName, "$cliName.dll") } else { @($cliName, "$cliName.dll") }
 $searchRoots = @(
-    "$repoRoot/servers/Azure.Mcp.Server/src/bin/Debug",
-    "$repoRoot/servers/Azure.Mcp.Server/src/bin/Release"
+    "$serverDirectory/src/bin/Debug",
+    "$serverDirectory/src/bin/Release"
 ) | Where-Object { Test-Path $_ }
 
 $cliArtifact = $null
@@ -84,9 +113,9 @@ foreach ($root in $searchRoots) {
 }
 
 if (-not $cliArtifact) {
-    Write-Error "Could not locate 'azmcp' CLI under: $($searchRoots -join ', ')"
+    Write-Error "Could not locate '$cliName' CLI for $ServerName under: $($searchRoots -join ', ')"
     Write-Host "Try building the solution first:" -ForegroundColor Yellow
-    Write-Host "  dotnet build `"$repoRoot/servers/Azure.Mcp.Server/Azure.Mcp.Server.slnx`"" -ForegroundColor Yellow
+    Write-Host "  dotnet build `"$serverSolution`"" -ForegroundColor Yellow
 
     exit 1
 }
@@ -105,7 +134,7 @@ if ((Test-Path $jsonFile) -and -not $Force) {
 Write-Host "Generating tools.json..." -ForegroundColor Green
 
 try {
-    # Execute azmcp tools list and capture output
+    # Execute the selected server's tools list command and capture output
     if ($cliArtifact.Extension -ieq '.dll') {
         $output = & dotnet $cliArtifact.FullName tools list 2>&1
     }
@@ -115,7 +144,7 @@ try {
 
     # Extract pure JSON in case the CLI prints extra logs
     if ($null -eq $output) {
-        throw "No output received from azmcp."
+        throw "No output received from $cliName."
     }
 
     $outputText = $output | Out-String
@@ -149,7 +178,7 @@ try {
     }
 }
 catch {
-    Write-Error "Failed to execute azmcp: $_"
+    Write-Error "Failed to execute $cliName for ${ServerName}: $_"
 
     exit 1
 }
